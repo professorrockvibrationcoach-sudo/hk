@@ -2,9 +2,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { OFFICIAL_REGISTRY } from "../../../src/definitions/constants";
 import type { CommonContext } from "../../../src/definitions/context";
-import verifyAuth from "../../../src/verify/verify-auth";
+import { resetWhoamiCache, verifyAuth } from "../../../src/verify/verify-auth";
 
 // Mock dependencies
+// eslint-disable-next-line e18e/ban-dependencies
 vi.mock(import("execa"));
 vi.mock(import("../../../src/utils/get-registry"));
 vi.mock(import("../../../src/utils/set-npmrc-auth"));
@@ -13,6 +14,7 @@ vi.mock(import("../../../src/trusted-publishing/token-exchange"));
 vi.mock(import("@visulima/fs"));
 vi.mock(import("@anolilab/rc"));
 
+// eslint-disable-next-line e18e/ban-dependencies
 const { execa } = await import("execa");
 const { default: getRegistry } = await import("../../../src/utils/get-registry");
 const { default: setNpmrcAuth } = await import("../../../src/utils/set-npmrc-auth");
@@ -27,16 +29,17 @@ describe(verifyAuth, () => {
     const context: CommonContext = {
         cwd: "/test/directory",
         env: { DEFAULT_NPM_REGISTRY: OFFICIAL_REGISTRY, NPM_TOKEN: "test_token_1234567890" },
-        logger: { log: vi.fn() },
+        logger: { error: vi.fn(), log: vi.fn(), success: vi.fn(), warn: vi.fn() },
         options: {},
-        // eslint-disable-next-line n/no-unsupported-features/node-builtins
-        stderr: { pipe: vi.fn(), write: vi.fn() } as unknown as WritableStream,
-        // eslint-disable-next-line n/no-unsupported-features/node-builtins
-        stdout: { pipe: vi.fn(), write: vi.fn() } as unknown as WritableStream,
-    };
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-explicit-any
+        stderr: { pipe: vi.fn(), write: vi.fn() } as any,
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-explicit-any
+        stdout: { pipe: vi.fn(), write: vi.fn() } as any,
+    } as unknown as CommonContext;
 
     beforeEach(() => {
         vi.clearAllMocks();
+        resetWhoamiCache();
     });
 
     it("should skip authentication when OIDC context is established for official registry", async () => {
@@ -71,7 +74,7 @@ describe(verifyAuth, () => {
         expect(setNpmrcAuth).toHaveBeenCalledWith(npmrc, OFFICIAL_REGISTRY, context);
     });
 
-    it("should perform dry-run publish for custom registries", async () => {
+    it("should perform whoami for custom registries", async () => {
         expect.assertions(4);
 
         const customRegistry = "https://custom.registry.org/";
@@ -80,14 +83,15 @@ describe(verifyAuth, () => {
         vi.mocked(oidcContextEstablished).mockResolvedValue(false);
         vi.mocked(setNpmrcAuth).mockResolvedValue(undefined);
 
-        vi.mocked(execa).mockResolvedValue({ stderr: "some output", stdout: "" });
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-explicit-any
+        vi.mocked(execa).mockResolvedValue({ stderr: "", stdout: "test-user" } as any);
 
-        await verifyAuth(npmrc, pkg, context, "/dist");
+        await verifyAuth(npmrc, pkg, context);
 
-        expect(context.logger.log).toHaveBeenCalledWith(expect.stringContaining("Running \"pnpm publish --dry-run\" to verify authentication"));
+        expect(context.logger.log).toHaveBeenCalledWith(expect.stringContaining("Running \"pnpm whoami\" to verify authentication"));
         expect(oidcContextEstablished).toHaveBeenCalledWith(customRegistry, pkg, context);
         expect(setNpmrcAuth).toHaveBeenCalledWith(npmrc, customRegistry, context);
-        expect(execa).toHaveBeenCalledWith("pnpm", ["publish", "/dist", "--dry-run", "--tag=semantic-release-auth-check", "--registry", customRegistry], {
+        expect(execa).toHaveBeenCalledWith("pnpm", ["whoami", "--registry", customRegistry], {
             cwd: context.cwd,
             env: {
                 ...context.env,
@@ -98,47 +102,87 @@ describe(verifyAuth, () => {
         });
     });
 
-    it("should perform dry-run publish for custom registries from a sub-directory", async () => {
-        expect.assertions(3);
+    it("should warn and continue when whoami fails for a custom registry", async () => {
+        expect.assertions(4);
 
-        const customRegistry = "https://custom.registry.org/";
-        const pkgRoot = "/dist";
+        // Use a distinct registry to avoid hitting the whoamiCache populated by the preceding test
+        const customRegistry = "https://failing.registry.org/";
 
         vi.mocked(getRegistry).mockReturnValue(customRegistry);
         vi.mocked(oidcContextEstablished).mockResolvedValue(false);
         vi.mocked(setNpmrcAuth).mockResolvedValue(undefined);
 
-        vi.mocked(execa).mockResolvedValue({ stderr: "some output", stdout: "" });
+        vi.mocked(execa).mockRejectedValue(
+            Object.assign(new Error("Command failed"), {
+                stderr: "This command requires you to be logged in to https://failing.registry.org/",
+                stdout: "",
+            }),
+        );
 
-        await verifyAuth(npmrc, pkg, context, pkgRoot);
-
+        // Must NOT throw — whoami failures on custom registries are soft warnings
+        await expect(verifyAuth(npmrc, pkg, context)).resolves.toBeUndefined();
         expect(oidcContextEstablished).toHaveBeenCalledWith(customRegistry, pkg, context);
         expect(setNpmrcAuth).toHaveBeenCalledWith(npmrc, customRegistry, context);
-        expect(execa).toHaveBeenCalledWith("pnpm", ["publish", "/dist", "--dry-run", "--tag=semantic-release-auth-check", "--registry", customRegistry], {
-            cwd: context.cwd,
-            env: {
-                ...context.env,
-                NPM_CONFIG_USERCONFIG: npmrc,
-            },
-            preferLocal: true,
-            timeout: 5000,
-        });
+        expect(context.logger.warn).toHaveBeenCalledWith(expect.stringContaining("Could not verify auth via \"pnpm whoami\" on custom registry"));
     });
 
-    it("should throw error when dry-run publish fails with auth error for custom registry", async () => {
+    it("should still throw EINVALIDNPMTOKEN when whoami fails for the official npm registry", async () => {
         expect.assertions(3);
 
-        const customRegistry = "https://custom.registry.org/";
-
-        vi.mocked(getRegistry).mockReturnValue(customRegistry);
+        vi.mocked(getRegistry).mockReturnValue(OFFICIAL_REGISTRY);
         vi.mocked(oidcContextEstablished).mockResolvedValue(false);
         vi.mocked(setNpmrcAuth).mockResolvedValue(undefined);
 
-        vi.mocked(execa).mockResolvedValue({ stderr: "This command requires you to be logged in to https://custom.registry.org/", stdout: "" });
+        vi.mocked(execa).mockRejectedValue(new Error("401 Unauthorized"));
 
-        await expect(verifyAuth(npmrc, pkg, context)).rejects.toThrow("Invalid npm authentication");
-        expect(oidcContextEstablished).toHaveBeenCalledWith(customRegistry, pkg, context);
-        expect(setNpmrcAuth).toHaveBeenCalledWith(npmrc, customRegistry, context);
+        await expect(verifyAuth(npmrc, pkg, context)).rejects.toThrow("Invalid npm token");
+        expect(oidcContextEstablished).toHaveBeenCalledWith(OFFICIAL_REGISTRY, pkg, context);
+        expect(setNpmrcAuth).toHaveBeenCalledWith(npmrc, OFFICIAL_REGISTRY, context);
+    });
+
+    it("should warn and continue when GitLab Package Registry deploy token cannot authenticate whoami", async () => {
+        expect.assertions(3);
+
+        // GitLab deploy tokens are valid for npm publish but the /-/whoami endpoint returns 401
+        // for them. This must not abort the release pipeline.
+        const gitlabRegistry = "https://gitlab.example.com/api/v4/projects/123/packages/npm/";
+
+        vi.mocked(getRegistry).mockReturnValue(gitlabRegistry);
+        vi.mocked(oidcContextEstablished).mockResolvedValue(false);
+        vi.mocked(setNpmrcAuth).mockResolvedValue(undefined);
+
+        vi.mocked(execa).mockRejectedValue(
+            Object.assign(new Error("ERR_PNPM_REGISTRY_FETCH_ERROR  GET https://gitlab.example.com/api/v4/projects/123/packages/npm/-/whoami: 401 Unauthorized"), {
+                stderr: "401 Unauthorized",
+                stdout: "",
+            }),
+        );
+
+        await expect(verifyAuth(npmrc, pkg, context)).resolves.toBeUndefined();
+        expect(context.logger.warn).toHaveBeenCalledWith(expect.stringContaining("gitlab.example.com"));
+        expect(context.logger.warn).toHaveBeenCalledWith(expect.stringContaining("GitLab Package Registry with deploy tokens"));
+    });
+
+    it("should not fail when the package version already exists in a custom registry", async () => {
+        expect.assertions(3);
+
+        // Use a distinct registry to avoid hitting the cache populated by the preceding test
+        const alreadyPublishedRegistry = "https://already-published.registry.org/";
+
+        vi.mocked(getRegistry).mockReturnValue(alreadyPublishedRegistry);
+        vi.mocked(oidcContextEstablished).mockResolvedValue(false);
+        vi.mocked(setNpmrcAuth).mockResolvedValue(undefined);
+
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-explicit-any
+        vi.mocked(execa).mockResolvedValue({ stderr: "", stdout: "test-user" } as any);
+
+        await expect(verifyAuth(npmrc, pkg, context)).resolves.toBeUndefined();
+
+        // The regression guard: old code used `pnpm publish --dry-run`, which fails when the
+        // version already exists. New code uses `whoami` exclusively, so that error path
+        // is unreachable regardless of the registry's publish state.
+        expect(execa).toHaveBeenCalledWith("pnpm", ["whoami", "--registry", alreadyPublishedRegistry], expect.any(Object));
+        expect(execa).not.toHaveBeenCalledWith("pnpm", expect.arrayContaining(["publish", "--dry-run"]), expect.any(Object));
     });
 
     it("should verify auth when package name is missing", async () => {
@@ -175,7 +219,8 @@ describe(verifyAuth, () => {
         vi.mocked(getRegistry).mockReturnValue(OFFICIAL_REGISTRY);
         vi.mocked(oidcContextEstablished).mockResolvedValue(false);
         vi.mocked(setNpmrcAuth).mockResolvedValue(undefined);
-        vi.mocked(execa).mockResolvedValue({ stderr: "", stdout: "test-user" });
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-explicit-any
+        vi.mocked(execa).mockResolvedValue({ stderr: "", stdout: "test-user" } as any);
 
         // First call - should execute whoami
         await verifyAuth(npmrc, pkg, context);
@@ -188,7 +233,8 @@ describe(verifyAuth, () => {
         vi.mocked(getRegistry).mockReturnValue(OFFICIAL_REGISTRY);
         vi.mocked(oidcContextEstablished).mockResolvedValue(false);
         vi.mocked(setNpmrcAuth).mockResolvedValue(undefined);
-        vi.mocked(execa).mockResolvedValue({ stderr: "", stdout: "test-user" });
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-explicit-any
+        vi.mocked(execa).mockResolvedValue({ stderr: "", stdout: "test-user" } as any);
 
         await verifyAuth(npmrc, pkg, context);
 

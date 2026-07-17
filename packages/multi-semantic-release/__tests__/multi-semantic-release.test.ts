@@ -3,42 +3,41 @@ import { createRequire } from "node:module";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+// eslint-disable-next-line e18e/ban-dependencies
 import { WritableStreamBuffer } from "stream-buffers";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import multiSemanticRelease from "../src/multi-semantic-release";
+import type { Package, ReleaseResult as ReleaseResultType } from "../src/types";
 import { copyDirectory, createNewTestingFiles } from "./helpers/file";
 import { gitAdd, gitCommit, gitCommitAll, gitGetLog, gitInit, gitInitOrigin, gitPush, gitTag } from "./helpers/git";
 
-type ReleaseResult
-    = | {
-        name: string;
-        result: {
-            lastRelease: {
-                channels?: string[];
-                gitHead?: string;
-                gitTag?: string;
-                name?: string;
-                version?: string;
-            };
-            nextRelease?: {
-                gitHead: string;
-                gitTag: string;
-                notes?: string;
-                type: string;
-                version: string;
-            };
-        };
+type PackageResult = Package;
+
+const getResult = (result: PackageResult[], index: number) => {
+    const item = result[index];
+
+    if (!item || item.result === false) {
+        throw new Error(`Expected release result at index ${String(index)}`);
     }
-    | {
-        name: string;
-        result: false;
-    };
+
+    return { name: item.name, result: item.result };
+};
 
 const require = createRequire(import.meta.url);
 const environment = {};
 
 const fixturesPath = resolve(dirname(fileURLToPath(import.meta.url)), "../__fixtures__");
+
+// Static regex patterns (moved to module scope per e18e/prefer-static-regex)
+// eslint-disable-next-line regexp/no-super-linear-backtracking, sonarjs/slow-regex
+const RE_BOT_COMMIT_FILTER = /.*aaa.*Add missing text file.*\n.*bbb.*Add missing text file.*/u;
+const RE_PACKAGES_A = /packages\/a$/u;
+const RE_PACKAGES_B = /packages\/b$/u;
+const RE_MSR_TEST_JSR_A = /msr-test-jsr-a/u;
+const RE_MSR_TEST_JSR_B = /msr-test-jsr-b/u;
+const RE_DENO_JSR_CONFIG = /Couldn't find a deno\.json|deno\.jsonc|jsr\.json or jsr\.jsonc/u;
+const RE_DRY_RUN = /dry.?run/iu;
 
 describe("multiSemanticRelease()", () => {
     beforeEach(() => {
@@ -72,8 +71,8 @@ describe("multiSemanticRelease()", () => {
             const result = await multiSemanticRelease(
                 [`packages/a/package.json`, `packages/b/package.json`, `packages/c/package.json`, `packages/d/package.json`],
                 {},
-                { cwd, env: environment, stderr, stdout },
-                { deps: { bump: strategy, prefix } },
+                { cwd, env: environment, stderr: stderr as unknown as NodeJS.WriteStream, stdout: stdout as unknown as NodeJS.WriteStream },
+                { deps: { bump: strategy as "override" | "satisfy" | "inherit", prefix } },
             );
 
             // Get stdout and stderr output.
@@ -96,56 +95,56 @@ describe("multiSemanticRelease()", () => {
             expect(out).toMatch("Released 4 of 4 packages, semantically!");
 
             // A.
-            expect(result[packageOrder[0]].name).toBe("msr-test-a");
-            expect(result[packageOrder[0]].result.lastRelease).toStrictEqual({});
-            expect(result[packageOrder[0]].result.nextRelease).toMatchObject({
+            expect(getResult(result, packageOrder[0] as number).name).toBe("msr-test-a");
+            expect(getResult(result, packageOrder[0] as number).result.lastRelease).toStrictEqual({});
+            expect(getResult(result, packageOrder[0] as number).result.nextRelease).toMatchObject({
                 gitHead: sha,
                 gitTag: "msr-test-a@1.0.0",
                 type: "minor",
                 version: "1.0.0",
             });
-            expect(result[packageOrder[0]].result.nextRelease.notes).toMatch("# msr-test-a 1.0.0");
-            expect(result[packageOrder[0]].result.nextRelease.notes).toMatch("### Features\n\n* Initial release");
-            expect(result[packageOrder[0]].result.nextRelease.notes).toMatch(
+            expect(getResult(result, packageOrder[0] as number).result.nextRelease?.notes).toMatch("# msr-test-a 1.0.0");
+            expect(getResult(result, packageOrder[0] as number).result.nextRelease?.notes).toMatch("### Features\n\n* Initial release");
+            expect(getResult(result, packageOrder[0] as number).result.nextRelease?.notes).toMatch(
                 "### Dependencies\n\n* **msr-test-b:** upgraded to 1.0.0\n* **msr-test-c:** upgraded to 1.0.0",
             );
 
             // B.
-            expect(result[packageOrder[1]].name).toBe("msr-test-b");
-            expect(result[packageOrder[1]].result.lastRelease).toStrictEqual({});
-            expect(result[packageOrder[1]].result.nextRelease).toMatchObject({
+            expect(getResult(result, packageOrder[1] as number).name).toBe("msr-test-b");
+            expect(getResult(result, packageOrder[1] as number).result.lastRelease).toStrictEqual({});
+            expect(getResult(result, packageOrder[1] as number).result.nextRelease).toMatchObject({
                 gitHead: sha,
                 gitTag: "msr-test-b@1.0.0",
                 type: "minor",
                 version: "1.0.0",
             });
-            expect(result[packageOrder[1]].result.nextRelease.notes).toMatch("# msr-test-b 1.0.0");
-            expect(result[packageOrder[1]].result.nextRelease.notes).toMatch("### Features\n\n* Initial release");
-            expect(result[packageOrder[1]].result.nextRelease.notes).toMatch("### Dependencies\n\n* **msr-test-d:** upgraded to 1.0.0");
+            expect(getResult(result, packageOrder[1] as number).result.nextRelease?.notes).toMatch("# msr-test-b 1.0.0");
+            expect(getResult(result, packageOrder[1] as number).result.nextRelease?.notes).toMatch("### Features\n\n* Initial release");
+            expect(getResult(result, packageOrder[1] as number).result.nextRelease?.notes).toMatch("### Dependencies\n\n* **msr-test-d:** upgraded to 1.0.0");
 
             // C.
-            expect(result[packageOrder[2]].name).toBe("msr-test-c");
-            expect(result[packageOrder[2]].result.lastRelease).toStrictEqual({});
-            expect(result[packageOrder[2]].result.nextRelease).toMatchObject({
+            expect(getResult(result, packageOrder[2] as number).name).toBe("msr-test-c");
+            expect(getResult(result, packageOrder[2] as number).result.lastRelease).toStrictEqual({});
+            expect(getResult(result, packageOrder[2] as number).result.nextRelease).toMatchObject({
                 gitHead: sha,
                 gitTag: "msr-test-c@1.0.0",
                 type: "minor",
                 version: "1.0.0",
             });
-            expect(result[packageOrder[2]].result.nextRelease.notes).toMatch("# msr-test-c 1.0.0");
-            expect(result[packageOrder[2]].result.nextRelease.notes).toMatch("### Features\n\n* Initial release");
+            expect(getResult(result, packageOrder[2] as number).result.nextRelease?.notes).toMatch("# msr-test-c 1.0.0");
+            expect(getResult(result, packageOrder[2] as number).result.nextRelease?.notes).toMatch("### Features\n\n* Initial release");
 
             // D.
-            expect(result[packageOrder[3]].name).toBe("msr-test-d");
-            expect(result[packageOrder[3]].result.lastRelease).toStrictEqual({});
-            expect(result[packageOrder[3]].result.nextRelease).toMatchObject({
+            expect(getResult(result, packageOrder[3] as number).name).toBe("msr-test-d");
+            expect(getResult(result, packageOrder[3] as number).result.lastRelease).toStrictEqual({});
+            expect(getResult(result, packageOrder[3] as number).result.nextRelease).toMatchObject({
                 gitHead: sha,
                 gitTag: "msr-test-d@1.0.0",
                 type: "minor",
                 version: "1.0.0",
             });
-            expect(result[packageOrder[3]].result.nextRelease.notes).toMatch("# msr-test-d 1.0.0");
-            expect(result[packageOrder[3]].result.nextRelease.notes).toMatch("### Features\n\n* Initial release");
+            expect(getResult(result, packageOrder[3] as number).result.nextRelease?.notes).toMatch("# msr-test-d 1.0.0");
+            expect(getResult(result, packageOrder[3] as number).result.nextRelease?.notes).toMatch("### Features\n\n* Initial release");
 
             // ONLY four times.
             expect(result).toHaveLength(4);
@@ -195,10 +194,10 @@ describe("multiSemanticRelease()", () => {
 
         // Call multiSemanticRelease()
         // Doesn't include plugins that actually publish.
-        const result: ReleaseResult[] = await multiSemanticRelease(
+        const result = await multiSemanticRelease(
             [`packages/a/package.json`, `packages/b/package.json`, `packages/c/package.json`, `packages/d/package.json`],
             {},
-            { cwd, env: environment, stderr, stdout },
+            { cwd, env: environment, stderr: stderr as unknown as NodeJS.WriteStream, stdout: stdout as unknown as NodeJS.WriteStream },
         );
 
         // Get stdout and stderr output.
@@ -221,55 +220,55 @@ describe("multiSemanticRelease()", () => {
         expect(out).toMatch("Released 4 of 4 packages, semantically!");
 
         // A.
-        expect(result[0].name).toBe("msr-test-a");
-        expect(result[0].result.lastRelease).toStrictEqual({});
-        expect(result[0].result.nextRelease).toMatchObject({
+        expect(getResult(result, 0).name).toBe("msr-test-a");
+        expect(getResult(result, 0).result.lastRelease).toStrictEqual({});
+        expect(getResult(result, 0).result.nextRelease).toMatchObject({
             gitHead: sha,
             gitTag: "msr-test-a@1.0.0",
             type: "minor",
             version: "1.0.0",
         });
-        expect(result[0].result.nextRelease.notes).toMatch("# msr-test-a 1.0.0");
-        expect(result[0].result.nextRelease.notes).toMatch("### Features\n\n* Initial release");
+        expect(getResult(result, 0).result.nextRelease?.notes).toMatch("# msr-test-a 1.0.0");
+        expect(getResult(result, 0).result.nextRelease?.notes).toMatch("### Features\n\n* Initial release");
 
         // B.
-        expect(result[2].name).toBe("msr-test-b");
-        expect(result[2].result.lastRelease).toStrictEqual({});
-        expect(result[2].result.nextRelease).toMatchObject({
+        expect(getResult(result, 2).name).toBe("msr-test-b");
+        expect(getResult(result, 2).result.lastRelease).toStrictEqual({});
+        expect(getResult(result, 2).result.nextRelease).toMatchObject({
             gitHead: sha,
             gitTag: "msr-test-b@1.0.0",
             type: "minor",
             version: "1.0.0",
         });
-        expect(result[2].result.nextRelease.notes).toMatch("# msr-test-b 1.0.0");
-        expect(result[2].result.nextRelease.notes).toMatch("### Features\n\n* Initial release");
-        expect(result[2].result.nextRelease.notes).toMatch("### Dependencies\n\n* **msr-test-a:** upgraded to 1.0.0");
+        expect(getResult(result, 2).result.nextRelease?.notes).toMatch("# msr-test-b 1.0.0");
+        expect(getResult(result, 2).result.nextRelease?.notes).toMatch("### Features\n\n* Initial release");
+        expect(getResult(result, 2).result.nextRelease?.notes).toMatch("### Dependencies\n\n* **msr-test-a:** upgraded to 1.0.0");
 
         // C.
-        expect(result[3].name).toBe("msr-test-c");
-        expect(result[3].result.lastRelease).toStrictEqual({});
-        expect(result[3].result.nextRelease).toMatchObject({
+        expect(getResult(result, 3).name).toBe("msr-test-c");
+        expect(getResult(result, 3).result.lastRelease).toStrictEqual({});
+        expect(getResult(result, 3).result.nextRelease).toMatchObject({
             gitHead: sha,
             gitTag: "msr-test-c@1.0.0",
             type: "minor",
             version: "1.0.0",
         });
-        expect(result[3].result.nextRelease.notes).toMatch("# msr-test-c 1.0.0");
-        expect(result[3].result.nextRelease.notes).toMatch("### Features\n\n* Initial release");
-        expect(result[3].result.nextRelease.notes).toMatch("### Dependencies\n\n* **msr-test-b:** upgraded to 1.0.0");
+        expect(getResult(result, 3).result.nextRelease?.notes).toMatch("# msr-test-c 1.0.0");
+        expect(getResult(result, 3).result.nextRelease?.notes).toMatch("### Features\n\n* Initial release");
+        expect(getResult(result, 3).result.nextRelease?.notes).toMatch("### Dependencies\n\n* **msr-test-b:** upgraded to 1.0.0");
 
         // D.
-        expect(result[1].name).toBe("msr-test-d");
-        expect(result[1].result.lastRelease).toStrictEqual({});
-        expect(result[1].result.nextRelease).toMatchObject({
+        expect(getResult(result, 1).name).toBe("msr-test-d");
+        expect(getResult(result, 1).result.lastRelease).toStrictEqual({});
+        expect(getResult(result, 1).result.nextRelease).toMatchObject({
             gitHead: sha,
             gitTag: "msr-test-d@1.0.0",
             type: "minor",
             version: "1.0.0",
         });
-        expect(result[1].result.nextRelease.notes).toMatch("# msr-test-d 1.0.0");
-        expect(result[1].result.nextRelease.notes).toMatch("### Features\n\n* Initial release");
-        expect(result[1].result.nextRelease.notes).not.toMatch("### Dependencies");
+        expect(getResult(result, 1).result.nextRelease?.notes).toMatch("# msr-test-d 1.0.0");
+        expect(getResult(result, 1).result.nextRelease?.notes).toMatch("### Features\n\n* Initial release");
+        expect(getResult(result, 1).result.nextRelease?.notes).not.toMatch("### Dependencies");
 
         // ONLY four times.
         expect(result).toHaveLength(4);
@@ -303,7 +302,7 @@ describe("multiSemanticRelease()", () => {
         expect.assertions(40);
 
         // Create Git repo with copy of Yarn workspaces fixture.
-        const cwd = gitInit("master", "release");
+        const cwd = gitInit("master");
 
         copyDirectory(`${fixturesPath}/yarnWorkspaces/`, cwd);
 
@@ -318,12 +317,12 @@ describe("multiSemanticRelease()", () => {
 
         // Call multiSemanticRelease()
         // Doesn't include plugins that actually publish.
-        const result: ReleaseResult[] = await multiSemanticRelease(
+        const result = await multiSemanticRelease(
             [`packages/a/package.json`, `packages/b/package.json`, `packages/c/package.json`, `packages/d/package.json`],
             {
                 branches: [{ name: "master", prerelease: "dev" }, { name: "release" }],
             },
-            { cwd, env: environment, stderr, stdout },
+            { cwd, env: environment, stderr: stderr as unknown as NodeJS.WriteStream, stdout: stdout as unknown as NodeJS.WriteStream },
         );
 
         // Get stdout and stderr output.
@@ -346,58 +345,58 @@ describe("multiSemanticRelease()", () => {
         expect(out).toMatch("Released 4 of 4 packages, semantically!");
 
         // A.
-        expect(result[0].name).toBe("msr-test-a");
-        expect(result[0].result.lastRelease).toStrictEqual({});
-        expect(result[0].result.nextRelease).toMatchObject({
+        expect(getResult(result, 0).name).toBe("msr-test-a");
+        expect(getResult(result, 0).result.lastRelease).toStrictEqual({});
+        expect(getResult(result, 0).result.nextRelease).toMatchObject({
             gitHead: sha,
             gitTag: "msr-test-a@1.0.0-dev.1",
             type: "minor",
             version: "1.0.0-dev.1",
         });
-        expect(result[0].result.nextRelease.notes).toMatch("# msr-test-a 1.0.0-dev.1");
-        expect(result[0].result.nextRelease.notes).toMatch("### Features\n\n* Initial release");
+        expect(getResult(result, 0).result.nextRelease?.notes).toMatch("# msr-test-a 1.0.0-dev.1");
+        expect(getResult(result, 0).result.nextRelease?.notes).toMatch("### Features\n\n* Initial release");
 
         // B.
-        expect(result[2].name).toBe("msr-test-b");
-        expect(result[2].result.lastRelease).toStrictEqual({});
-        expect(result[2].result.nextRelease).toMatchObject({
+        expect(getResult(result, 2).name).toBe("msr-test-b");
+        expect(getResult(result, 2).result.lastRelease).toStrictEqual({});
+        expect(getResult(result, 2).result.nextRelease).toMatchObject({
             gitHead: sha,
             gitTag: "msr-test-b@1.0.0-dev.1",
             type: "minor",
             version: "1.0.0-dev.1",
         });
-        expect(result[2].result.nextRelease.notes).toMatch("# msr-test-b 1.0.0-dev.1");
-        expect(result[2].result.nextRelease.notes).toMatch("### Features\n\n* Initial release");
-        expect(result[2].result.nextRelease.notes).toMatch(
+        expect(getResult(result, 2).result.nextRelease?.notes).toMatch("# msr-test-b 1.0.0-dev.1");
+        expect(getResult(result, 2).result.nextRelease?.notes).toMatch("### Features\n\n* Initial release");
+        expect(getResult(result, 2).result.nextRelease?.notes).toMatch(
             "### Dependencies\n\n* **msr-test-a:** upgraded to 1.0.0-dev.1\n* **msr-test-d:** upgraded to 1.0.0-dev.1",
         );
 
         // C.
-        expect(result[3].name).toBe("msr-test-c");
-        expect(result[3].result.lastRelease).toStrictEqual({});
-        expect(result[3].result.nextRelease).toMatchObject({
+        expect(getResult(result, 3).name).toBe("msr-test-c");
+        expect(getResult(result, 3).result.lastRelease).toStrictEqual({});
+        expect(getResult(result, 3).result.nextRelease).toMatchObject({
             gitHead: sha,
             gitTag: "msr-test-c@1.0.0-dev.1",
             type: "minor",
             version: "1.0.0-dev.1",
         });
-        expect(result[3].result.nextRelease.notes).toMatch("# msr-test-c 1.0.0-dev.1");
-        expect(result[3].result.nextRelease.notes).toMatch("### Features\n\n* Initial release");
-        expect(result[3].result.nextRelease.notes).toMatch("### Dependencies\n\n* **msr-test-b:** upgraded to 1.0.0-dev.1");
-        expect(result[3].result.nextRelease.notes).toMatch("**msr-test-d:** upgraded to 1.0.0-dev.1");
+        expect(getResult(result, 3).result.nextRelease?.notes).toMatch("# msr-test-c 1.0.0-dev.1");
+        expect(getResult(result, 3).result.nextRelease?.notes).toMatch("### Features\n\n* Initial release");
+        expect(getResult(result, 3).result.nextRelease?.notes).toMatch("### Dependencies\n\n* **msr-test-b:** upgraded to 1.0.0-dev.1");
+        expect(getResult(result, 3).result.nextRelease?.notes).toMatch("**msr-test-d:** upgraded to 1.0.0-dev.1");
 
         // D.
-        expect(result[1].name).toBe("msr-test-d");
-        expect(result[1].result.lastRelease).toStrictEqual({});
-        expect(result[1].result.nextRelease).toMatchObject({
+        expect(getResult(result, 1).name).toBe("msr-test-d");
+        expect(getResult(result, 1).result.lastRelease).toStrictEqual({});
+        expect(getResult(result, 1).result.nextRelease).toMatchObject({
             gitHead: sha,
             gitTag: "msr-test-d@1.0.0-dev.1",
             type: "minor",
             version: "1.0.0-dev.1",
         });
-        expect(result[1].result.nextRelease.notes).toMatch("# msr-test-d 1.0.0-dev.1");
-        expect(result[1].result.nextRelease.notes).toMatch("### Features\n\n* Initial release");
-        expect(result[1].result.nextRelease.notes).not.toMatch("### Dependencies");
+        expect(getResult(result, 1).result.nextRelease?.notes).toMatch("# msr-test-d 1.0.0-dev.1");
+        expect(getResult(result, 1).result.nextRelease?.notes).toMatch("### Features\n\n* Initial release");
+        expect(getResult(result, 1).result.nextRelease?.notes).not.toMatch("### Dependencies");
 
         // ONLY four times.
         expect(result).toHaveLength(4);
@@ -434,7 +433,7 @@ describe("multiSemanticRelease()", () => {
         const packages = ["packages/c/", "packages/d/"];
 
         // Create Git repo with copy of Yarn workspaces fixture.
-        const cwd = gitInit("master", "release");
+        const cwd = gitInit("master");
 
         copyDirectory(`${fixturesPath}/yarnWorkspaces2Packages/`, cwd);
 
@@ -453,7 +452,7 @@ describe("multiSemanticRelease()", () => {
             {
                 branches: [{ name: "master", prerelease: "dev" }, { name: "release" }],
             },
-            { cwd, env: environment, stderr, stdout },
+            { cwd, env: environment, stderr: stderr as unknown as NodeJS.WriteStream, stdout: stdout as unknown as NodeJS.WriteStream },
         );
 
         // Add new testing files for a new release.
@@ -474,7 +473,7 @@ describe("multiSemanticRelease()", () => {
             {
                 branches: [{ name: "master", prerelease: "dev" }, { name: "release" }],
             },
-            { cwd, env: environment, stderr, stdout },
+            { cwd, env: environment, stderr: stderr as unknown as NodeJS.WriteStream, stdout: stdout as unknown as NodeJS.WriteStream },
         );
 
         // Get stdout and stderr output.
@@ -492,24 +491,24 @@ describe("multiSemanticRelease()", () => {
         expect(out).toMatch("Released 1 of 2 packages, semantically!");
 
         // C.
-        expect(result[1].name).toBe("msr-test-c");
-        expect(result[1].result.lastRelease).toStrictEqual({
+        expect(result[1]?.name).toBe("msr-test-c");
+        expect(getResult(result, 1).result.lastRelease).toStrictEqual({
             channels: ["master"],
             gitHead: sha1,
             gitTag: "msr-test-c@1.0.0-dev.1",
             name: "msr-test-c@1.0.0-dev.1",
             version: "1.0.0-dev.1",
         });
-        expect(result[1].result.nextRelease).toMatchObject({
+        expect(getResult(result, 1).result.nextRelease).toMatchObject({
             gitHead: sha,
             gitTag: "msr-test-c@1.0.0-dev.2",
             type: "minor",
             version: "1.0.0-dev.2",
         });
 
-        expect(result[1].result.nextRelease.notes).toMatch("# msr-test-c [1.0.0-dev.2]");
-        expect(result[1].result.nextRelease.notes).toMatch("### Features\n\n* New release on package c only");
-        expect(result[1].result.nextRelease.notes).not.toMatch("### Dependencies");
+        expect(getResult(result, 1).result.nextRelease?.notes).toMatch("# msr-test-c [1.0.0-dev.2]");
+        expect(getResult(result, 1).result.nextRelease?.notes).toMatch("### Features\n\n* New release on package c only");
+        expect(getResult(result, 1).result.nextRelease?.notes).not.toMatch("### Dependencies");
 
         // ONLY 2 time.
         expect(result).toHaveLength(2);
@@ -529,7 +528,7 @@ describe("multiSemanticRelease()", () => {
         const packages = ["packages/c/", "packages/d/"];
 
         // Create Git repo with copy of Yarn workspaces fixture.
-        const cwd = gitInit("master", "release");
+        const cwd = gitInit("master");
 
         copyDirectory(`${fixturesPath}/yarnWorkspaces2Packages/`, cwd);
 
@@ -548,7 +547,7 @@ describe("multiSemanticRelease()", () => {
             {
                 branches: [{ name: "master" }, { name: "release" }],
             },
-            { cwd, env: environment, stderr, stdout },
+            { cwd, env: environment, stderr: stderr as unknown as NodeJS.WriteStream, stdout: stdout as unknown as NodeJS.WriteStream },
         );
 
         // Add new testing files for a new release.
@@ -570,7 +569,7 @@ describe("multiSemanticRelease()", () => {
             {
                 branches: [{ channel: "beta", name: "master", prerelease: "beta" }, { name: "release" }],
             },
-            { cwd, env: environment, stderr, stdout },
+            { cwd, env: environment, stderr: stderr as unknown as NodeJS.WriteStream, stdout: stdout as unknown as NodeJS.WriteStream },
         );
 
         // Get stdout and stderr output.
@@ -589,29 +588,29 @@ describe("multiSemanticRelease()", () => {
         expect(out).toMatch("Released 2 of 2 packages, semantically!");
 
         // C.
-        expect(result[1].name).toBe("msr-test-c");
-        expect(result[1].result.lastRelease).toStrictEqual({
+        expect(result[1]?.name).toBe("msr-test-c");
+        expect(getResult(result, 1).result.lastRelease).toStrictEqual({
             channels: [null],
             gitHead: sha1,
             gitTag: "msr-test-c@1.0.0",
             name: "msr-test-c@1.0.0",
             version: "1.0.0",
         });
-        expect(result[1].result.nextRelease).toMatchObject({
+        expect(getResult(result, 1).result.nextRelease).toMatchObject({
             gitHead: sha,
             gitTag: "msr-test-c@2.0.0-beta.1",
             type: "major",
             version: "2.0.0-beta.1",
         });
 
-        expect(result[1].result.nextRelease.notes).toMatch("# msr-test-c [2.0.0-beta.1]");
-        expect(result[1].result.nextRelease.notes).toMatch("### Features\n\n* New prerelease");
-        expect(result[1].result.nextRelease.notes).toMatch("### Dependencies\n\n* **msr-test-d:** upgraded to 2.0.0-beta.1");
+        expect(getResult(result, 1).result.nextRelease?.notes).toMatch("# msr-test-c [2.0.0-beta.1]");
+        expect(getResult(result, 1).result.nextRelease?.notes).toMatch("### Features\n\n* New prerelease");
+        expect(getResult(result, 1).result.nextRelease?.notes).toMatch("### Dependencies\n\n* **msr-test-d:** upgraded to 2.0.0-beta.1");
 
         // D
-        expect(result[0].result.nextRelease.notes).toMatch("# msr-test-d [2.0.0-beta.1]");
-        expect(result[0].result.nextRelease.notes).toMatch("### Features\n\n* New prerelease");
-        expect(result[0].result.nextRelease.notes).not.toMatch("### Dependencies");
+        expect(getResult(result, 0).result.nextRelease?.notes).toMatch("# msr-test-d [2.0.0-beta.1]");
+        expect(getResult(result, 0).result.nextRelease?.notes).toMatch("### Features\n\n* New prerelease");
+        expect(getResult(result, 0).result.nextRelease?.notes).not.toMatch("### Dependencies");
 
         // ONLY 2 times.
         expect(result).toHaveLength(2);
@@ -631,7 +630,7 @@ describe("multiSemanticRelease()", () => {
         const packages = ["packages/a/", "packages/b/", "packages/c/", "packages/d/"];
 
         // Create Git repo with copy of Yarn workspaces fixture.
-        const cwd = gitInit("master", "release");
+        const cwd = gitInit("master");
 
         copyDirectory(`${fixturesPath}/yarnWorkspaces/`, cwd);
 
@@ -650,7 +649,7 @@ describe("multiSemanticRelease()", () => {
             {
                 branches: [{ name: "master", prerelease: "dev" }, { name: "release" }],
             },
-            { cwd, env: environment, stderr, stdout },
+            { cwd, env: environment, stderr: stderr as unknown as NodeJS.WriteStream, stdout: stdout as unknown as NodeJS.WriteStream },
         );
 
         // Add new testing files for a new release.
@@ -671,7 +670,7 @@ describe("multiSemanticRelease()", () => {
             {
                 branches: [{ name: "master", prerelease: "dev" }, { name: "release" }],
             },
-            { cwd, env: environment, stderr, stdout },
+            { cwd, env: environment, stderr: stderr as unknown as NodeJS.WriteStream, stdout: stdout as unknown as NodeJS.WriteStream },
         );
 
         // Get stdout and stderr output.
@@ -694,83 +693,83 @@ describe("multiSemanticRelease()", () => {
         expect(out).toMatch("Released 4 of 4 packages, semantically!");
 
         // A.
-        expect(result[0].name).toBe("msr-test-a");
-        expect(result[0].result.lastRelease).toStrictEqual({
+        expect(result[0]?.name).toBe("msr-test-a");
+        expect(getResult(result, 0).result.lastRelease).toStrictEqual({
             channels: ["master"],
             gitHead: sha1,
             gitTag: "msr-test-a@1.0.0-dev.1",
             name: "msr-test-a@1.0.0-dev.1",
             version: "1.0.0-dev.1",
         });
-        expect(result[0].result.nextRelease).toMatchObject({
+        expect(getResult(result, 0).result.nextRelease).toMatchObject({
             gitHead: sha,
             gitTag: "msr-test-a@1.0.0-dev.2",
             type: "minor",
             version: "1.0.0-dev.2",
         });
-        expect(result[0].result.nextRelease.notes).toMatch("# msr-test-a [1.0.0-dev.2]");
-        expect(result[0].result.nextRelease.notes).toMatch("### Features\n\n* New releases");
+        expect(getResult(result, 0).result.nextRelease?.notes).toMatch("# msr-test-a [1.0.0-dev.2]");
+        expect(getResult(result, 0).result.nextRelease?.notes).toMatch("### Features\n\n* New releases");
 
         // B.
-        expect(result[2].name).toBe("msr-test-b");
-        expect(result[2].result.lastRelease).toStrictEqual({
+        expect(result[2]?.name).toBe("msr-test-b");
+        expect(getResult(result, 2).result.lastRelease).toStrictEqual({
             channels: ["master"],
             gitHead: sha1,
             gitTag: "msr-test-b@1.0.0-dev.1",
             name: "msr-test-b@1.0.0-dev.1",
             version: "1.0.0-dev.1",
         });
-        expect(result[2].result.nextRelease).toMatchObject({
+        expect(getResult(result, 2).result.nextRelease).toMatchObject({
             gitHead: sha,
             gitTag: "msr-test-b@1.0.0-dev.2",
             type: "minor",
             version: "1.0.0-dev.2",
         });
-        expect(result[2].result.nextRelease.notes).toMatch("# msr-test-b [1.0.0-dev.2]");
-        expect(result[2].result.nextRelease.notes).toMatch("### Features\n\n* New releases");
-        expect(result[2].result.nextRelease.notes).toMatch(
+        expect(getResult(result, 2).result.nextRelease?.notes).toMatch("# msr-test-b [1.0.0-dev.2]");
+        expect(getResult(result, 2).result.nextRelease?.notes).toMatch("### Features\n\n* New releases");
+        expect(getResult(result, 2).result.nextRelease?.notes).toMatch(
             "### Dependencies\n\n* **msr-test-a:** upgraded to 1.0.0-dev.2\n* **msr-test-d:** upgraded to 1.0.0-dev.2",
         );
 
         // C.
-        expect(result[3].name).toBe("msr-test-c");
-        expect(result[3].result.lastRelease).toStrictEqual({
+        expect(result[3]?.name).toBe("msr-test-c");
+        expect(getResult(result, 3).result.lastRelease).toStrictEqual({
             channels: ["master"],
             gitHead: sha1,
             gitTag: "msr-test-c@1.0.0-dev.1",
             name: "msr-test-c@1.0.0-dev.1",
             version: "1.0.0-dev.1",
         });
-        expect(result[3].result.nextRelease).toMatchObject({
+        expect(getResult(result, 3).result.nextRelease).toMatchObject({
             gitHead: sha,
             gitTag: "msr-test-c@1.0.0-dev.2",
             type: "minor",
             version: "1.0.0-dev.2",
         });
-        expect(result[3].result.nextRelease.notes).toMatch("# msr-test-c [1.0.0-dev.2]");
-        expect(result[3].result.nextRelease.notes).toMatch("### Features\n\n* New releases");
-        expect(result[3].result.nextRelease.notes).toMatch(
+        expect(getResult(result, 3).result.nextRelease?.notes).toMatch("# msr-test-c [1.0.0-dev.2]");
+        expect(getResult(result, 3).result.nextRelease?.notes).toMatch("### Features\n\n* New releases");
+        expect(getResult(result, 3).result.nextRelease?.notes).toMatch(
             "### Dependencies\n\n* **msr-test-b:** upgraded to 1.0.0-dev.2\n* **msr-test-d:** upgraded to 1.0.0-dev.2",
         );
 
         // D.
-        expect(result[1].name).toBe("msr-test-d");
-        expect(result[1].result.lastRelease).toStrictEqual({
+        expect(result[1]?.name).toBe("msr-test-d");
+        expect(getResult(result, 1).result.lastRelease).toStrictEqual({
             channels: ["master"],
             gitHead: sha1,
             gitTag: "msr-test-d@1.0.0-dev.1",
             name: "msr-test-d@1.0.0-dev.1",
             version: "1.0.0-dev.1",
         });
-        expect(result[1].result.nextRelease).toMatchObject({
+        expect(getResult(result, 1).result.nextRelease).toMatchObject({
             gitHead: sha,
             gitTag: "msr-test-d@1.0.0-dev.2",
             type: "minor",
             version: "1.0.0-dev.2",
         });
-        expect(result[1].result.nextRelease.notes).toMatch("# msr-test-d [1.0.0-dev.2]");
-        expect(result[1].result.nextRelease.notes).toMatch("### Features\n\n* New releases");
-        expect(result[1].result.nextRelease.notes).not.toMatch("### Dependencies");
+        expect(getResult(result, 1).result.nextRelease?.notes).toMatch("# msr-test-d [1.0.0-dev.2]");
+        expect(getResult(result, 1).result.nextRelease?.notes).toMatch("### Features\n\n* New releases");
+        expect(getResult(result, 1).result.nextRelease?.notes).not.toMatch("### Dependencies");
 
         // ONLY four times.
         expect(result).toHaveLength(4);
@@ -829,7 +828,7 @@ describe("multiSemanticRelease()", () => {
         const result = await multiSemanticRelease(
             [`packages/c/package.json`, `packages/a/package.json`, `packages/d/package.json`, `packages/b/package.json`],
             {},
-            { cwd, env: environment, stderr, stdout },
+            { cwd, env: environment, stderr: stderr as unknown as NodeJS.WriteStream, stdout: stdout as unknown as NodeJS.WriteStream },
         );
 
         // Get stdout and stderr output.
@@ -850,15 +849,15 @@ describe("multiSemanticRelease()", () => {
         expect(out).toMatch("Released 0 of 4 packages, semantically!");
 
         // Results.
-        expect(result[0].result).toBe(false);
-        expect(result[1].result).toBe(false);
-        expect(result[2].result).toBe(false);
-        expect(result[3].result).toBe(false);
+        expect(result[0]?.result).toBe(false);
+        expect(result[1]?.result).toBe(false);
+        expect(result[2]?.result).toBe(false);
+        expect(result[3]?.result).toBe(false);
         expect(result).toHaveLength(4);
     });
 
     it("changes in some packages", async () => {
-        expect.assertions(37);
+        expect.assertions(32); // Updated count after removing C's release expectations
 
         // Create Git repo.
         const cwd = gitInit();
@@ -889,7 +888,7 @@ describe("multiSemanticRelease()", () => {
         const result = await multiSemanticRelease(
             [`packages/d/package.json`, `packages/b/package.json`, `packages/a/package.json`, `packages/c/package.json`],
             {},
-            { cwd, env: environment, stderr, stdout },
+            { cwd, env: environment, stderr: stderr as unknown as NodeJS.WriteStream, stdout: stdout as unknown as NodeJS.WriteStream },
             { deps: {}, dryRun: false },
         );
 
@@ -908,70 +907,54 @@ describe("multiSemanticRelease()", () => {
         expect(out).toMatch("Queued 4 packages! Starting release...");
         expect(out).toMatch("Created tag msr-test-a@1.1.0");
         expect(out).toMatch("Created tag msr-test-b@1.0.1");
-        expect(out).toMatch("Created tag msr-test-c@1.0.1");
+        expect(out).not.toMatch("Created tag msr-test-c@1.0.1"); // C should not be released (devDeps don't trigger releases)
         expect(out).toMatch("There are no relevant changes, so no new version is released");
-        expect(out).toMatch("Released 3 of 4 packages, semantically!");
+        expect(out).toMatch("Released 2 of 4 packages, semantically!"); // Changed from 3 to 2
 
         // A.
-        expect(result[0].name).toBe("msr-test-a");
-        expect(result[0].result.lastRelease).toMatchObject({
+        expect(result[0]?.name).toBe("msr-test-a");
+        expect(getResult(result, 0).result.lastRelease).toMatchObject({
             gitHead: sha1,
             gitTag: "msr-test-a@1.0.0",
             version: "1.0.0",
         });
-        expect(result[0].result.nextRelease).toMatchObject({
+        expect(getResult(result, 0).result.nextRelease).toMatchObject({
             gitHead: sha2,
             gitTag: "msr-test-a@1.1.0",
             type: "minor",
             version: "1.1.0",
         });
 
-        expect(result[0].result.nextRelease.notes).toMatch("# msr-test-a [1.1.0]");
-        expect(result[0].result.nextRelease.notes).toMatch("### Features\n\n* **aaa:** Add missing text file");
+        expect(getResult(result, 0).result.nextRelease?.notes).toMatch("# msr-test-a [1.1.0]");
+        expect(getResult(result, 0).result.nextRelease?.notes).toMatch("### Features\n\n* **aaa:** Add missing text file");
 
         // B.
-        expect(result[2].name).toBe("msr-test-b");
-        expect(result[2].result.lastRelease).toStrictEqual({
+        expect(result[2]?.name).toBe("msr-test-b");
+        expect(getResult(result, 2).result.lastRelease).toStrictEqual({
             channels: [null],
             gitHead: sha1,
             gitTag: "msr-test-b@1.0.0",
             name: "msr-test-b@1.0.0",
             version: "1.0.0",
         });
-        expect(result[2].result.nextRelease).toMatchObject({
+        expect(getResult(result, 2).result.nextRelease).toMatchObject({
             gitHead: sha2,
             gitTag: "msr-test-b@1.0.1",
             type: "patch",
             version: "1.0.1",
         });
-        expect(result[2].result.nextRelease.notes).toMatch("# msr-test-b [1.0.1]");
-        expect(result[2].result.nextRelease.notes).not.toMatch("### Features");
-        expect(result[2].result.nextRelease.notes).not.toMatch("### Bug Fixes");
-        expect(result[2].result.nextRelease.notes).toMatch("### Dependencies\n\n* **msr-test-a:** upgraded to 1.1.0");
+        expect(getResult(result, 2).result.nextRelease?.notes).toMatch("# msr-test-b [1.0.1]");
+        expect(getResult(result, 2).result.nextRelease?.notes).not.toMatch("### Features");
+        expect(getResult(result, 2).result.nextRelease?.notes).not.toMatch("### Bug Fixes");
+        expect(getResult(result, 2).result.nextRelease?.notes).toMatch("### Dependencies\n\n* **msr-test-a:** upgraded to 1.1.0");
 
-        // C.
-        expect(result[3].name).toBe("msr-test-c");
-        expect(result[3].result.lastRelease).toStrictEqual({
-            channels: [null],
-            gitHead: sha1,
-            gitTag: "msr-test-c@1.0.0",
-            name: "msr-test-c@1.0.0",
-            version: "1.0.0",
-        });
-        expect(result[3].result.nextRelease).toMatchObject({
-            gitHead: sha2,
-            gitTag: "msr-test-c@1.0.1",
-            type: "patch",
-            version: "1.0.1",
-        });
-        expect(result[3].result.nextRelease.notes).toMatch("# msr-test-c [1.0.1]");
-        expect(result[3].result.nextRelease.notes).not.toMatch("### Features");
-        expect(result[3].result.nextRelease.notes).not.toMatch("### Bug Fixes");
-        expect(result[3].result.nextRelease.notes).toMatch("### Dependencies\n\n* **msr-test-b:** upgraded to 1.0.1");
+        // C should not be released (devDependencies don't trigger releases)
+        expect(result[3]?.name).toBe("msr-test-c");
+        expect(result[3]?.result).toBe(false);
 
         // D.
-        expect(result[1].name).toBe("msr-test-d");
-        expect(result[1].result).toBe(false);
+        expect(result[1]?.name).toBe("msr-test-d");
+        expect(result[1]?.result).toBe(false);
 
         // ONLY four times.
         expect(result[4]).toBeUndefined();
@@ -996,9 +979,10 @@ describe("multiSemanticRelease()", () => {
         // eslint-disable-next-line import/no-dynamic-require
         expect(require(`${cwd}/packages/c/package.json`)).toMatchObject({
             devDependencies: {
-                "msr-test-b": "1.0.1",
-                "msr-test-d": "1.0.0",
+                "msr-test-b": "*", // devDeps are NOT updated since C doesn't get a release
+                "msr-test-d": "*",
             },
+            version: "0.0.0", // C should not be released
         });
     });
 
@@ -1036,7 +1020,7 @@ describe("multiSemanticRelease()", () => {
                 plugins: [
                     {
                         // Ensure that msr-test-c is always ready before msr-test-d
-                        verify: (_pluginOptions: Record<string, unknown>, { lastRelease: { name } }) =>
+                        verify: (_pluginOptions: Record<string, unknown>, { lastRelease: { name } }: { lastRelease: { name: string } }) =>
                             new Promise<void>((_resolve) => {
                                 if (name.split("@")[0] === "msr-test-c") {
                                     _resolve();
@@ -1046,13 +1030,13 @@ describe("multiSemanticRelease()", () => {
                             }),
                     },
                     {
-                        prepare: (_pluginOptions: Record<string, unknown>, { lastRelease: { name } }) => {
+                        prepare: (_pluginOptions: Record<string, unknown>, { lastRelease: { name } }: { lastRelease: { name: string } }) => {
                             mockPrepare(name.split("@")[0]);
                         },
                     },
                 ],
             },
-            { cwd, env: environment, stderr, stdout },
+            { cwd, env: environment, stderr: stderr as unknown as NodeJS.WriteStream, stdout: stdout as unknown as NodeJS.WriteStream },
             { deps: {}, dryRun: false, sequentialPrepare: true },
         );
 
@@ -1075,13 +1059,13 @@ describe("multiSemanticRelease()", () => {
         expect(out).toMatch("Released 2 of 2 packages, semantically!");
 
         // C.
-        expect(result[1].name).toBe("msr-test-c");
-        expect(result[1].result.lastRelease).toMatchObject({
+        expect(result[1]?.name).toBe("msr-test-c");
+        expect(getResult(result, 1).result.lastRelease).toMatchObject({
             gitHead: sha1,
             gitTag: "msr-test-c@1.0.0",
             version: "1.0.0",
         });
-        expect(result[1].result.nextRelease).toMatchObject({
+        expect(getResult(result, 1).result.nextRelease).toMatchObject({
             gitHead: sha2,
             gitTag: "msr-test-c@1.0.1",
             type: "patch",
@@ -1089,15 +1073,15 @@ describe("multiSemanticRelease()", () => {
         });
 
         // D.
-        expect(result[0].name).toBe("msr-test-d");
-        expect(result[0].result.lastRelease).toStrictEqual({
+        expect(result[0]?.name).toBe("msr-test-d");
+        expect(getResult(result, 0).result.lastRelease).toStrictEqual({
             channels: [null],
             gitHead: sha1,
             gitTag: "msr-test-d@1.0.0",
             name: "msr-test-d@1.0.0",
             version: "1.0.0",
         });
-        expect(result[0].result.nextRelease).toMatchObject({
+        expect(getResult(result, 0).result.nextRelease).toMatchObject({
             gitHead: sha2,
             gitTag: "msr-test-d@1.1.0",
             type: "minor",
@@ -1141,7 +1125,12 @@ describe("multiSemanticRelease()", () => {
 
         // Call multiSemanticRelease()
         // Doesn't include plugins that actually publish.
-        const result = await multiSemanticRelease(null, {}, { cwd, env: environment, stderr, stdout }, { deps: {}, dryRun: false, sequentialPrepare: true });
+        const result = await multiSemanticRelease(
+            null,
+            {},
+            { cwd, env: environment, stderr: stderr as unknown as NodeJS.WriteStream, stdout: stdout as unknown as NodeJS.WriteStream },
+            { deps: {}, dryRun: false, sequentialPrepare: true },
+        );
 
         // Get stdout and stderr output.
         const error = stderr.getContentsAsString("utf8");
@@ -1158,13 +1147,13 @@ describe("multiSemanticRelease()", () => {
         expect(out).toMatch("Released 1 of 2 packages, semantically!");
 
         // C.
-        expect(result[1].name).toBe("msr-test-c");
-        expect(result[1].result.lastRelease).toMatchObject({
+        expect(result[1]?.name).toBe("msr-test-c");
+        expect(getResult(result, 1).result.lastRelease).toMatchObject({
             gitHead: sha1,
             gitTag: "msr-test-c@1.0.0",
             version: "1.0.0",
         });
-        expect(result[1].result.nextRelease).toMatchObject({
+        expect(getResult(result, 1).result.nextRelease).toMatchObject({
             gitHead: sha2,
             gitTag: "msr-test-c@1.1.0",
             type: "minor",
@@ -1172,8 +1161,8 @@ describe("multiSemanticRelease()", () => {
         });
 
         // D.
-        expect(result[0].name).toBe("msr-test-d");
-        expect(result[0].result.nextRelease).toBeUndefined();
+        expect(result[0]?.name).toBe("msr-test-d");
+        expect(result[0]?.result).toBe(false);
 
         // ONLY two times.
         expect(result[2]).toBeUndefined();
@@ -1212,7 +1201,7 @@ describe("multiSemanticRelease()", () => {
         await multiSemanticRelease(
             [`packages/c/package.json`, `packages/d/package.json`, `packages/b/package.json`, `packages/a/package.json`],
             {},
-            { cwd, env: environment, stderr, stdout },
+            { cwd, env: environment, stderr: stderr as unknown as NodeJS.WriteStream, stdout: stdout as unknown as NodeJS.WriteStream },
             { sequentialInit: true },
         );
 
@@ -1237,10 +1226,10 @@ describe("multiSemanticRelease()", () => {
         // eslint-disable-next-line import/no-dynamic-require
         expect(require(`${cwd}/packages/c/package.json`)).toMatchObject({
             devDependencies: {
-                "msr-test-b": "1.0.1",
-                "msr-test-d": "1.0.0",
+                "msr-test-b": "*", // devDeps are NOT updated since C doesn't get a release
+                "msr-test-d": "*",
             },
-            version: "1.0.1",
+            version: "0.0.0", // C should not be released
         });
     });
 
@@ -1265,13 +1254,17 @@ describe("multiSemanticRelease()", () => {
 
         // Call multiSemanticRelease()
         try {
-            await multiSemanticRelease(null, {}, { cwd, env: environment, stderr, stdout });
+            await multiSemanticRelease(
+                null,
+                {},
+                { cwd, env: environment, stderr: stderr as unknown as NodeJS.WriteStream, stdout: stdout as unknown as NodeJS.WriteStream },
+            );
 
             // Not reached.
             expect(false).toBe(true);
         } catch (error) {
             // eslint-disable-next-line vitest/no-conditional-expect
-            expect(error.message).toBe("Cannot release msr-test-c because dependency msr-test-b has not been released yet");
+            expect((error as Error).message).toBe("Cannot release msr-test-c because dependency msr-test-b has not been released yet");
         }
     });
 
@@ -1311,7 +1304,7 @@ describe("multiSemanticRelease()", () => {
                 // Override to add our own plugins.
                 plugins: ["@semantic-release/release-notes-generator", plugin],
             },
-            { cwd, env: environment, stderr, stdout },
+            { cwd, env: environment, stderr: stderr as unknown as NodeJS.WriteStream, stdout: stdout as unknown as NodeJS.WriteStream },
         );
 
         // Check calls.
@@ -1363,14 +1356,13 @@ describe("multiSemanticRelease()", () => {
                 analyzeCommits: ["@semantic-release/commit-analyzer"],
                 plugins: ["@semantic-release/release-notes-generator", "@semantic-release/changelog", "@semantic-release/git"],
             },
-            { cwd, env: environment, stderr, stdout },
+            { cwd, env: environment, stderr: stderr as unknown as NodeJS.WriteStream, stdout: stdout as unknown as NodeJS.WriteStream },
             { deps: {}, dryRun: false },
         );
 
         const logOutput = gitGetLog(cwd, 3, "HEAD");
 
-        // eslint-disable-next-line regexp/no-super-linear-backtracking, sonarjs/slow-regex
-        expect(logOutput).not.toMatch(/.*aaa.*Add missing text file.*\n.*bbb.*Add missing text file.*/u);
+        expect(logOutput).not.toMatch(RE_BOT_COMMIT_FILTER);
     });
 
     it("deep errors (e.g. in plugins) bubble up and out", async () => {
@@ -1407,7 +1399,7 @@ describe("multiSemanticRelease()", () => {
                         },
                     ],
                 },
-                { cwd, env: environment, stderr, stdout },
+                { cwd, env: environment, stderr: stderr as unknown as NodeJS.WriteStream, stdout: stdout as unknown as NodeJS.WriteStream },
             );
 
             // Not reached.
@@ -1415,34 +1407,44 @@ describe("multiSemanticRelease()", () => {
         } catch (error) {
             // Error bubbles up through semantic-release and multi-semantic-release and out.
             // eslint-disable-next-line vitest/no-conditional-expect
-            expect(error.message).toBe("NOPE");
+            expect((error as Error).message).toBe("NOPE");
         }
     });
 
     it("typeError if CWD is not string", async () => {
         expect.assertions(3);
 
-        await expect(multiSemanticRelease(null, {}, { cwd: 123 })).rejects.toBeInstanceOf(TypeError);
-        await expect(multiSemanticRelease(null, {}, { cwd: true })).rejects.toBeInstanceOf(TypeError);
-        await expect(multiSemanticRelease(null, {}, { cwd: [] })).rejects.toBeInstanceOf(TypeError);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
+        await expect(multiSemanticRelease(null, {}, { cwd: 123 as any })).rejects.toBeInstanceOf(TypeError);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
+        await expect(multiSemanticRelease(null, {}, { cwd: true as any })).rejects.toBeInstanceOf(TypeError);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
+        await expect(multiSemanticRelease(null, {}, { cwd: [] as any })).rejects.toBeInstanceOf(TypeError);
     });
 
     it("typeError if paths is not a list of strings", async () => {
         expect.assertions(7);
 
-        await expect(multiSemanticRelease(123)).rejects.toBeInstanceOf(TypeError);
-        await expect(multiSemanticRelease("string")).rejects.toBeInstanceOf(TypeError);
-        await expect(multiSemanticRelease(true)).rejects.toBeInstanceOf(TypeError);
-        await expect(multiSemanticRelease([1, 2, 3])).rejects.toBeInstanceOf(TypeError);
-        await expect(multiSemanticRelease([true, false])).rejects.toBeInstanceOf(TypeError);
-        await expect(multiSemanticRelease([undefined])).rejects.toBeInstanceOf(TypeError);
-        await expect(multiSemanticRelease([null])).rejects.toBeInstanceOf(TypeError);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument
+        await expect(multiSemanticRelease(123 as any)).rejects.toBeInstanceOf(TypeError);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument
+        await expect(multiSemanticRelease("string" as any)).rejects.toBeInstanceOf(TypeError);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument
+        await expect(multiSemanticRelease(true as any)).rejects.toBeInstanceOf(TypeError);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument
+        await expect(multiSemanticRelease([1, 2, 3] as any)).rejects.toBeInstanceOf(TypeError);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument
+        await expect(multiSemanticRelease([true, false] as any)).rejects.toBeInstanceOf(TypeError);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument
+        await expect(multiSemanticRelease([undefined] as any)).rejects.toBeInstanceOf(TypeError);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument
+        await expect(multiSemanticRelease([null] as any)).rejects.toBeInstanceOf(TypeError);
     });
 
     it("referenceError if paths points to a non-file", async () => {
         expect.assertions(3);
 
-        const stdout = new WritableStreamBuffer(); // Blackhole the output so it doesn't clutter Jest.
+        const stdout = new WritableStreamBuffer() as unknown as NodeJS.WriteStream; // Blackhole the output so it doesn't clutter Jest.
         const r1 = multiSemanticRelease([`${fixturesPath}/DOESNOTEXIST.json`], {}, { stdout });
 
         await expect(r1).rejects.toBeInstanceOf(ReferenceError); // Path that does not exist.
@@ -1459,11 +1461,12 @@ describe("multiSemanticRelease()", () => {
     it("syntaxError if paths points to package.json with bad syntax", async () => {
         expect.assertions(12);
 
-        const stdout = new WritableStreamBuffer(); // Blackhole the output so it doesn't clutter Jest.
+        const stdout = new WritableStreamBuffer() as unknown as NodeJS.WriteStream; // Blackhole the output so it doesn't clutter Jest.
         const r1 = multiSemanticRelease([`${fixturesPath}/invalidPackage.json`], {}, { stdout });
 
         await expect(r1).rejects.toBeInstanceOf(SyntaxError);
         await expect(r1).rejects.toMatchObject({
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
             message: expect.stringMatching("could not be parsed"),
         });
 
@@ -1471,6 +1474,7 @@ describe("multiSemanticRelease()", () => {
 
         await expect(r2).rejects.toBeInstanceOf(SyntaxError);
         await expect(r2).rejects.toMatchObject({
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
             message: expect.stringMatching("not an object"),
         });
 
@@ -1478,6 +1482,7 @@ describe("multiSemanticRelease()", () => {
 
         await expect(r3).rejects.toBeInstanceOf(SyntaxError);
         await expect(r3).rejects.toMatchObject({
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
             message: expect.stringMatching("Package name must be non-empty string"),
         });
 
@@ -1485,6 +1490,7 @@ describe("multiSemanticRelease()", () => {
 
         await expect(r4).rejects.toBeInstanceOf(SyntaxError);
         await expect(r4).rejects.toMatchObject({
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
             message: expect.stringMatching("Package dependencies must be object"),
         });
 
@@ -1492,6 +1498,7 @@ describe("multiSemanticRelease()", () => {
 
         await expect(r5).rejects.toBeInstanceOf(SyntaxError);
         await expect(r5).rejects.toMatchObject({
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
             message: expect.stringMatching("Package devDependencies must be object"),
         });
 
@@ -1499,6 +1506,7 @@ describe("multiSemanticRelease()", () => {
 
         await expect(r6).rejects.toBeInstanceOf(SyntaxError);
         await expect(r6).rejects.toMatchObject({
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
             message: expect.stringMatching("Package peerDependencies must be object"),
         });
     });
@@ -1515,14 +1523,19 @@ describe("multiSemanticRelease()", () => {
 
         gitInitOrigin(cwd);
 
-        await gitPush(cwd);
+        gitPush(cwd);
 
         // Capture output.
         const stdout = new WritableStreamBuffer();
         const stderr = new WritableStreamBuffer();
 
-        // eslint-disable-next-line no-template-curly-in-string
-        await multiSemanticRelease([`packages/a/package.json`], {}, { cwd, env: environment, stderr, stdout }, { deps: {}, tagFormat: "${name}/${version}" });
+        await multiSemanticRelease(
+            [`packages/a/package.json`],
+            {},
+            { cwd, env: environment, stderr: stderr as unknown as NodeJS.WriteStream, stdout: stdout as unknown as NodeJS.WriteStream },
+            // eslint-disable-next-line no-template-curly-in-string
+            { deps: {}, tagFormat: "${name}/${version}" },
+        );
 
         // Get stdout and stderr output.
         const error = stderr.getContentsAsString("utf8");
@@ -1551,13 +1564,13 @@ describe("multiSemanticRelease()", () => {
         const stderr = new WritableStreamBuffer();
 
         // Call multiSemanticRelease with dryRun flag
-        const result: ReleaseResult[] = await multiSemanticRelease(
+        const result = await multiSemanticRelease(
             [`packages/a/package.json`, `packages/b/package.json`, `packages/c/package.json`, `packages/d/package.json`],
             {
                 // Include the git plugin to test that dry-run prevents tag creation
                 plugins: ["@semantic-release/commit-analyzer", "@semantic-release/release-notes-generator", "@semantic-release/git"],
             },
-            { cwd, env: environment, stderr, stdout },
+            { cwd, env: environment, stderr: stderr as unknown as NodeJS.WriteStream, stdout: stdout as unknown as NodeJS.WriteStream },
             { deps: {}, dryRun: true, sequentialPrepare: true },
         );
 
@@ -1588,7 +1601,7 @@ describe("multiSemanticRelease()", () => {
         gitPush(cwd);
 
         // Track the cwd values received by plugins for each package
-        const cwdValues = {
+        const cwdValues: { generateNotes: string[]; prepare: string[]; publish: string[]; verifyConditions: string[]; verifyRelease: string[] } = {
             generateNotes: [],
             prepare: [],
             publish: [],
@@ -1598,23 +1611,23 @@ describe("multiSemanticRelease()", () => {
 
         // Make an inline plugin that captures context.cwd
         const plugin = {
-            generateNotes: vi.fn((pluginConfig, context) => {
+            generateNotes: vi.fn((_pluginConfig: unknown, context: { cwd: string }) => {
                 cwdValues.generateNotes.push(context.cwd);
 
                 return "";
             }),
-            prepare: vi.fn((pluginConfig, context) => {
+            prepare: vi.fn((_pluginConfig: unknown, context: { cwd: string }) => {
                 cwdValues.prepare.push(context.cwd);
             }),
-            publish: vi.fn((pluginConfig, context) => {
+            publish: vi.fn((_pluginConfig: unknown, context: { cwd: string }) => {
                 cwdValues.publish.push(context.cwd);
 
                 return {};
             }),
-            verifyConditions: vi.fn((pluginConfig, context) => {
+            verifyConditions: vi.fn((_pluginConfig: unknown, context: { cwd: string }) => {
                 cwdValues.verifyConditions.push(context.cwd);
             }),
-            verifyRelease: vi.fn((pluginConfig, context) => {
+            verifyRelease: vi.fn((_pluginConfig: unknown, context: { cwd: string }) => {
                 cwdValues.verifyRelease.push(context.cwd);
             }),
         };
@@ -1630,7 +1643,7 @@ describe("multiSemanticRelease()", () => {
                 analyzeCommits: ["@semantic-release/commit-analyzer"],
                 plugins: ["@semantic-release/release-notes-generator", plugin],
             },
-            { cwd, env: environment, stderr, stdout },
+            { cwd, env: environment, stderr: stderr as unknown as NodeJS.WriteStream, stdout: stdout as unknown as NodeJS.WriteStream },
         );
 
         // Verify that each plugin hook was called
@@ -1642,18 +1655,18 @@ describe("multiSemanticRelease()", () => {
 
         // Verify that each hook received the correct package-specific cwd
         // Package a should have cwd ending in packages/a
-        expect(cwdValues.verifyConditions[0]).toMatch(/packages\/a$/u);
-        expect(cwdValues.verifyRelease[0]).toMatch(/packages\/a$/u);
-        expect(cwdValues.generateNotes[0]).toMatch(/packages\/a$/u);
-        expect(cwdValues.prepare[0]).toMatch(/packages\/a$/u);
-        expect(cwdValues.publish[0]).toMatch(/packages\/a$/u);
+        expect(cwdValues.verifyConditions[0]).toMatch(RE_PACKAGES_A);
+        expect(cwdValues.verifyRelease[0]).toMatch(RE_PACKAGES_A);
+        expect(cwdValues.generateNotes[0]).toMatch(RE_PACKAGES_A);
+        expect(cwdValues.prepare[0]).toMatch(RE_PACKAGES_A);
+        expect(cwdValues.publish[0]).toMatch(RE_PACKAGES_A);
 
         // Package b should have cwd ending in packages/b
-        expect(cwdValues.verifyConditions[1]).toMatch(/packages\/b$/u);
-        expect(cwdValues.verifyRelease[1]).toMatch(/packages\/b$/u);
-        expect(cwdValues.generateNotes[1]).toMatch(/packages\/b$/u);
-        expect(cwdValues.prepare[1]).toMatch(/packages\/b$/u);
-        expect(cwdValues.publish[1]).toMatch(/packages\/b$/u);
+        expect(cwdValues.verifyConditions[1]).toMatch(RE_PACKAGES_B);
+        expect(cwdValues.verifyRelease[1]).toMatch(RE_PACKAGES_B);
+        expect(cwdValues.generateNotes[1]).toMatch(RE_PACKAGES_B);
+        expect(cwdValues.prepare[1]).toMatch(RE_PACKAGES_B);
+        expect(cwdValues.publish[1]).toMatch(RE_PACKAGES_B);
     });
 
     it("jsr plugin receives correct cwd for each package (dry-run)", async () => {
@@ -1681,7 +1694,7 @@ describe("multiSemanticRelease()", () => {
                 dryRun: true,
                 plugins: ["@semantic-release/release-notes-generator", "@sebbo2002/semantic-release-jsr"],
             },
-            { cwd, env: environment, stderr, stdout },
+            { cwd, env: environment, stderr: stderr as unknown as NodeJS.WriteStream, stdout: stdout as unknown as NodeJS.WriteStream },
         );
 
         // Verify that releases were processed for both packages
@@ -1690,18 +1703,18 @@ describe("multiSemanticRelease()", () => {
         expect(result[1]).toBeDefined();
 
         // Verify that package a was processed
-        expect(result[0].name).toMatch(/msr-test-jsr-a/u);
+        expect(result[0]?.name).toMatch(RE_MSR_TEST_JSR_A);
 
         // Verify that package b was processed
-        expect(result[1].name).toMatch(/msr-test-jsr-b/u);
+        expect(result[1]?.name).toMatch(RE_MSR_TEST_JSR_B);
 
         // Verify that JSR fixture is properly configured (no deno.json/jsr.json errors)
-        const output = stdout.getContentsAsString("utf8") + stderr.getContentsAsString("utf8");
+        const output = (stdout.getContentsAsString("utf8") || "") + (stderr.getContentsAsString("utf8") || "");
 
-        expect(output).not.toMatch(/Couldn't find a deno\.json|deno\.jsonc|jsr\.json or jsr\.jsonc/u);
+        expect(output).not.toMatch(RE_DENO_JSR_CONFIG);
 
         // Verify no actual publishing occurred (dry-run was used)
-        expect(output).toMatch(/dry.?run/iu);
+        expect(output).toMatch(RE_DRY_RUN);
     }, 30_000);
 
     describe("catalog change detection", () => {
@@ -1756,25 +1769,26 @@ catalogs:
             const result = await multiSemanticRelease(
                 [`packages/a/package.json`, `packages/b/package.json`, `packages/c/package.json`, `packages/d/package.json`],
                 {},
-                { cwd, env: environment, stderr, stdout },
+                { cwd, env: environment, stderr: stderr as unknown as NodeJS.WriteStream, stdout: stdout as unknown as NodeJS.WriteStream },
                 { deps: { bump: "override", release: "patch" } },
             );
 
             // Package a uses semantic-release (major) and lodash-es (patch) from catalogs
-            // Should trigger major release due to semantic-release change
+            // With deps.release: "patch", catalog changes should trigger a patch release
+            // regardless of the catalog dependency's own release type
             const packageA = result.find((p) => p.name === "msr-test-a");
 
             expect(packageA?.result).toBeDefined();
             expect(packageA?.result).not.toBe(false);
-            expect(packageA?.result?.nextRelease?.version).toBe("2.0.0");
+            expect((packageA?.result as ReleaseResultType).nextRelease?.version).toBe("1.0.1");
 
             // Package b uses @semantic-release/changelog (major) from catalog
-            // Should trigger major release
+            // With deps.release: "patch", should trigger patch release
             const packageB = result.find((p) => p.name === "msr-test-b");
 
             expect(packageB?.result).toBeDefined();
             expect(packageB?.result).not.toBe(false);
-            expect(packageB?.result?.nextRelease?.version).toBe("2.0.0");
+            expect((packageB?.result as ReleaseResultType).nextRelease?.version).toBe("1.0.1");
 
             // Package c uses lodash-es (patch) from catalog
             // Should trigger patch release
@@ -1782,7 +1796,7 @@ catalogs:
 
             expect(packageC?.result).toBeDefined();
             expect(packageC?.result).not.toBe(false);
-            expect(packageC?.result?.nextRelease?.version).toBe("1.0.1");
+            expect((packageC?.result as ReleaseResultType).nextRelease?.version).toBe("1.0.1");
 
             // Package d doesn't use any catalogs, should not release
             const packageD = result.find((p) => p.name === "msr-test-d");
@@ -1841,7 +1855,7 @@ catalogs:
             const result = await multiSemanticRelease(
                 [`packages/a/package.json`],
                 {},
-                { cwd, env: environment, stderr, stdout },
+                { cwd, env: environment, stderr: stderr as unknown as NodeJS.WriteStream, stdout: stdout as unknown as NodeJS.WriteStream },
                 { deps: { bump: "override", release: "patch" } },
             );
 
@@ -1850,8 +1864,8 @@ catalogs:
             expect(packageA?.result).toBeDefined();
             expect(packageA?.result).not.toBe(false);
             // Should use minor from commit (higher than patch from catalog)
-            expect(packageA?.result?.nextRelease?.version).toBe("1.1.0");
-            expect(packageA?.result?.nextRelease?.type).toBe("minor");
+            expect((packageA?.result as ReleaseResultType).nextRelease?.version).toBe("1.1.0");
+            expect((packageA?.result as ReleaseResultType).nextRelease?.type).toBe("minor");
         });
     });
 });

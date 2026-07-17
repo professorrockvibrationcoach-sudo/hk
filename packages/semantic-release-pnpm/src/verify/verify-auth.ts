@@ -2,11 +2,12 @@ import { rc } from "@anolilab/rc";
 import { writeFile } from "@visulima/fs";
 import type { PackageJson } from "@visulima/package";
 import { resolve } from "@visulima/path";
+// eslint-disable-next-line e18e/ban-dependencies
 import dbg from "debug";
+// eslint-disable-next-line e18e/ban-dependencies
 import { execa } from "execa";
 import { stringify } from "ini";
 import normalizeUrl from "normalize-url";
-import type { AuthOptions } from "registry-auth-token";
 import getAuthToken from "registry-auth-token";
 
 import { OFFICIAL_REGISTRY } from "../definitions/constants";
@@ -61,10 +62,11 @@ const getCacheKey = (registry: string, context: CommonContext): string => {
             cwd: context.cwd,
             defaults: { registry: OFFICIAL_REGISTRY },
         });
-        const token = getAuthToken(registry, { npmrc: config } as AuthOptions);
+        const token = getAuthToken(registry, { npmrc: config });
 
         if (token) {
-            const tokenId = token.length > 12 ? `${token.slice(0, 8)}...${token.slice(-4)}` : token.slice(0, 8);
+            const tokenValue = token.token;
+            const tokenId = tokenValue.length > 12 ? `${tokenValue.slice(0, 8)}...${tokenValue.slice(-4)}` : tokenValue.slice(0, 8);
 
             return `${normalizedRegistry}:token:${tokenId}`;
         }
@@ -83,8 +85,8 @@ const getCacheKey = (registry: string, context: CommonContext): string => {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const isConnectionError = (error: any): boolean => {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    const errorCode = (error as { code?: string })?.code || "";
-    const isTimedOut = (error as { timedOut?: boolean })?.timedOut === true;
+    const errorCode = (error as { code?: string }).code ?? "";
+    const isTimedOut = (error as { timedOut?: boolean }).timedOut === true;
 
     return (
         isTimedOut
@@ -98,8 +100,13 @@ const isConnectionError = (error: any): boolean => {
 };
 
 /**
- * Verify authentication context against the official npm registry using pnpm whoami.
+ * Verify authentication context against a registry using pnpm whoami.
  * Results are cached per registry/auth token combination to prevent throttling in monorepos.
+ *
+ * Note: `pnpm whoami` is reliable on the official npm registry but may fail on custom registries
+ * even when the credentials are valid for publishing (e.g. GitLab Package Registry with deploy
+ * tokens, some Verdaccio configurations). For custom registries a whoami failure is therefore
+ * treated as a soft warning — the publish step is the authoritative credential check.
  * @param npmrc Path to the .npmrc file.
  * @param registry The registry URL.
  * @param context The semantic-release context.
@@ -157,13 +164,29 @@ const verifyAuthContextAgainstRegistry = async (npmrc: string, registry: string,
             if (isConnectionError(error)) {
                 const semanticError = getError("EINVALIDNPMAUTH", { registry });
 
-                throw new AggregateError([semanticError], semanticError.message);
+                throw new AggregateError([semanticError], semanticError.message, { cause: error });
             }
 
-            // Treat other whoami failures as invalid token
-            const semanticError = getError("EINVALIDNPMTOKEN", { registry });
+            // whoami is fully reliable only on the official npm registry. Custom registries vary
+            // in their /-/whoami support: the GitLab Package Registry returns 401 for deploy tokens
+            // even though those tokens are valid for `npm publish`; some Verdaccio configurations
+            // disable the endpoint entirely. Treat whoami failures on custom registries as a soft
+            // warning — the publish step is the authoritative auth check and will surface real
+            // credential errors with full context.
+            if (normalizeUrl(registry) === normalizeUrl(OFFICIAL_REGISTRY)) {
+                const semanticError = getError("EINVALIDNPMTOKEN", { registry });
 
-            throw new AggregateError([semanticError], semanticError.message);
+                throw new AggregateError([semanticError], semanticError.message, { cause: error });
+            }
+
+            const errorMessage = error instanceof Error ? error.message : String(error);
+
+            context.logger.warn(
+                `Could not verify auth via "pnpm whoami" on custom registry "${registry}" (${errorMessage}). `
+                + `This registry may not support /-/whoami for the configured token type `
+                + `(e.g. GitLab Package Registry with deploy tokens). `
+                + `The publish step will surface any real credential errors.`,
+            );
         }
     })();
 
@@ -184,121 +207,22 @@ const verifyAuthContextAgainstRegistry = async (npmrc: string, registry: string,
 };
 
 /**
- * Check if an error message indicates an authentication issue.
- * @param message The error message to check.
- * @returns True if the message indicates an auth error.
- */
-const isAuthErrorMessage = (message: string): boolean =>
-    message.includes("requires you to be logged in")
-    || message.includes("authentication")
-    || message.includes("Unauthorized")
-    || message.includes("401")
-    || message.includes("403");
-
-/**
- * Handle errors from publish dry-run command.
- * @param error The error to handle.
- * @param registry The registry URL.
- */
-const handlePublishError = (error: unknown, registry: string): never => {
-    // If it's already an AggregateError, re-throw it
-    if (error instanceof AggregateError) {
-        throw error;
-    }
-
-    // Check stderr for auth errors (execa errors have stderr property)
-    // Handle both string and array formats
-    const errorStderrRaw = (error as { stderr?: string | string[] })?.stderr;
-    const errorStderr = Array.isArray(errorStderrRaw) ? errorStderrRaw.join("\n") : errorStderrRaw || "";
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    const combinedMessage = `${errorStderr} ${errorMessage}`;
-
-    // Check for connection errors or timeouts (registry not available) - treat as auth error
-    if (isConnectionError(error)) {
-        const semanticError = getError("EINVALIDNPMAUTH", { registry });
-
-        throw new AggregateError([semanticError], semanticError.message);
-    }
-
-    // Check for authentication errors
-    if (isAuthErrorMessage(combinedMessage)) {
-        const semanticError = getError("EINVALIDNPMAUTH", { registry });
-
-        throw new AggregateError([semanticError], semanticError.message);
-    }
-
-    // Re-throw other errors
-    throw error;
-};
-
-/**
- * Verify authentication for custom registries using dry-run publish.
- * @param npmrc Path to the .npmrc file.
- * @param registry The registry URL.
- * @param context The semantic-release context.
- * @param pkgRoot Optional package root directory for dry-run publishing.
- */
-const verifyAuthContextAgainstCustomRegistry = async (npmrc: string, registry: string, context: CommonContext, pkgRoot = "."): Promise<void> => {
-    const { cwd, env, logger, stderr, stdout } = context;
-
-    try {
-        logger.log(`Running "pnpm publish --dry-run" to verify authentication on registry "${registry}"`);
-
-        const publishArgs = ["publish", pkgRoot, "--dry-run", "--tag=semantic-release-auth-check", "--registry", registry];
-        const publishOptions = {
-            cwd,
-            env: {
-                ...env,
-                NPM_CONFIG_USERCONFIG: npmrc,
-            },
-            preferLocal: true,
-            timeout: 5000, // 5 second timeout to prevent hanging when registry is unavailable
-        };
-
-        const publishResult = await execa("pnpm", publishArgs, publishOptions);
-
-        // Log the output (stdout/stderr are strings when lines option is not used)
-        const stdoutString = Array.isArray(publishResult.stdout) ? publishResult.stdout.join("\n") : publishResult.stdout || "";
-        const stderrString = Array.isArray(publishResult.stderr) ? publishResult.stderr.join("\n") : publishResult.stderr || "";
-
-        if (stdoutString) {
-            stdout.write(stdoutString);
-        }
-
-        if (stderrString) {
-            stderr.write(stderrString);
-
-            // Check for authentication errors in stderr
-            if (isAuthErrorMessage(stderrString)) {
-                const semanticError = getError("EINVALIDNPMAUTH", { registry });
-
-                throw new AggregateError([semanticError], semanticError.message);
-            }
-        }
-    } catch (error) {
-        handlePublishError(error, registry);
-    }
-};
-
-/**
  * Verify that the provided npm credentials grant access to the target registry.
  *
  * The helper first checks if an OIDC context is established for trusted publishing.
  * If OIDC is available and the registry is the official npm registry, it skips further authentication.
  * Otherwise, it ensures that `npmrc` contains valid authentication data by delegating to
- * {@link setNpmrcAuth}. For the official registry, it runs `pnpm whoami` to perform an online
- * verification of the credentials. For custom registries, it performs a dry-run publish to check authentication.
+ * {@link setNpmrcAuth}. It then runs `pnpm whoami` to perform an online verification of the
+ * credentials against the target registry (official or custom).
  * @param npmrc – Path to the `.npmrc` that contains (or will receive) credentials.
  * @param package_ – The package manifest (used to derive the registry when `publishConfig.registry` is set).
  * @param context – semantic-release context providing env, logger, streams, etc.
- * @param pkgRoot – Optional package root directory for dry-run publishing.
  * @returns Resolves when authentication has been verified.
  */
-const verifyAuth: (npmrc: string, package_: PackageJson, context: CommonContext, pkgRoot?: string) => Promise<void> = async (
+export const verifyAuth: (npmrc: string, package_: PackageJson, context: CommonContext) => Promise<void> = async (
     npmrc: string,
     package_: PackageJson,
     context: CommonContext,
-    pkgRoot?: string,
 ): Promise<void> => {
     const registry = getRegistry(package_, context);
 
@@ -338,14 +262,13 @@ const verifyAuth: (npmrc: string, package_: PackageJson, context: CommonContext,
 
     await setNpmrcAuth(npmrc, registry, context);
 
-    const normalizedRegistry = normalizeUrl(registry);
-    const normalizedOfficialRegistry = normalizeUrl(OFFICIAL_REGISTRY);
-
-    // Verify authentication based on registry type
-    // Use whoami only for the official npm registry, use dry-run publish for all other registries
-    await (normalizedRegistry === normalizedOfficialRegistry
-        ? verifyAuthContextAgainstRegistry(npmrc, registry, context)
-        : verifyAuthContextAgainstCustomRegistry(npmrc, registry, context, pkgRoot));
+    await verifyAuthContextAgainstRegistry(npmrc, registry, context);
 };
 
-export default verifyAuth;
+/**
+ * Clear the whoami verification cache. Intended for test isolation —
+ * call from `beforeEach` to prevent state leaking between tests.
+ */
+export const resetWhoamiCache = (): void => {
+    whoamiCache.clear();
+};

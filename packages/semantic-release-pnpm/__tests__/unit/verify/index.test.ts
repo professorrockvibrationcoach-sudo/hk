@@ -15,7 +15,7 @@ vi.mock(import("../../../src/verify/verify-pnpm"));
 const { default: getPackage } = await import("../../../src/utils/get-package");
 const { shouldPublish } = await import("../../../src/utils/should-publish");
 const { default: getNpmrcPath } = await import("../../../src/utils/get-npmrc-path");
-const { default: verifyAuth } = await import("../../../src/verify/verify-auth");
+const { verifyAuth } = await import("../../../src/verify/verify-auth");
 const { default: verifyConfig } = await import("../../../src/verify/verify-config");
 const { default: verifyPnpm } = await import("../../../src/verify/verify-pnpm");
 
@@ -28,10 +28,10 @@ describe(verify, () => {
         env: {},
         logger: { error: vi.fn(), log: vi.fn(), success: vi.fn() },
         options: {},
-        // eslint-disable-next-line n/no-unsupported-features/node-builtins
-        stderr: { write: vi.fn() } as unknown as WritableStream,
-        // eslint-disable-next-line n/no-unsupported-features/node-builtins
-        stdout: { write: vi.fn() } as unknown as WritableStream,
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-explicit-any
+        stderr: { write: vi.fn() } as any,
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-explicit-any
+        stdout: { write: vi.fn() } as any,
     };
 
     beforeEach(() => {
@@ -81,5 +81,63 @@ describe(verify, () => {
         await verify(pluginConfig, context);
 
         expect(verifyAuth).not.toHaveBeenCalled();
+    });
+
+    it("should handle a plain Error thrown by verifyPnpm without crashing", async () => {
+        expect.assertions(2);
+
+        const plainError = new Error("pnpm not found");
+
+        vi.mocked(verifyPnpm).mockImplementation(() => {
+            throw plainError;
+        });
+
+        const pkg = { name: "test-package", private: true, version: "1.0.0" };
+
+        vi.mocked(getPackage).mockResolvedValue(pkg);
+        vi.mocked(shouldPublish).mockReturnValue(false);
+
+        const error = await verify(pluginConfig, context).catch((error_: unknown) => error_);
+
+        expect(error).toBeInstanceOf(AggregateError);
+        expect((error as AggregateError).errors).toContain(plainError);
+    });
+
+    it("should handle a plain Error thrown by verifyAuth without crashing", async () => {
+        expect.assertions(2);
+
+        const plainError = new Error("EINVALIDNPMTOKEN Invalid npm token.");
+
+        const pkg = { name: "test-package", version: "1.0.0" };
+
+        vi.mocked(getPackage).mockResolvedValue(pkg);
+        vi.mocked(shouldPublish).mockReturnValue(true);
+        vi.mocked(getNpmrcPath).mockReturnValue(".npmrc");
+        vi.mocked(verifyAuth).mockRejectedValue(plainError);
+
+        const error = await verify(pluginConfig, context).catch((error_: unknown) => error_);
+
+        expect(error).toBeInstanceOf(AggregateError);
+        expect((error as AggregateError).errors).toContain(plainError);
+    });
+
+    it("should handle an Error whose 'errors' property is not an array", async () => {
+        expect.assertions(2);
+
+        const malformedError = Object.assign(new Error("malformed aggregate"), { errors: "not an array" });
+
+        vi.mocked(verifyPnpm).mockImplementation(() => {
+            throw malformedError;
+        });
+
+        const pkg = { name: "test-package", private: true, version: "1.0.0" };
+
+        vi.mocked(getPackage).mockResolvedValue(pkg);
+        vi.mocked(shouldPublish).mockReturnValue(false);
+
+        const error = await verify(pluginConfig, context).catch((error_: unknown) => error_);
+
+        expect(error).toBeInstanceOf(AggregateError);
+        expect((error as AggregateError).errors).toContain(malformedError);
     });
 });

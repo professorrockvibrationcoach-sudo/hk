@@ -47,10 +47,13 @@ jobs:
 
             - name: "Setup resources and environment"
               id: "setup"
-              uses: "anolilab/workflows/step/setup@main"
+              uses: "anolilab/workflows/step/setup@6d0f01d0742f15c51b2398bc97e0b008c7416b00" # main
               with:
                   node-version: "22.x"
                   cache-prefix: "preview-release"
+                  # TODO: re-enable once pnpm/npm audit works with unpublished @visulima/task-runner-binding-* packages and pnpm registry config
+                  run-npm-audit: false
+                  run-signatures-audit: false
 
             # Temporary solution until Nx solve this https://github.com/nrwl/nx/issues/22259
             - name: "Get changed files"
@@ -65,7 +68,7 @@ jobs:
               shell: "bash"
               run: |
                   files="${{ steps.files.outputs.all_changed_files }}";
-                  pnpm run build:affected:packages:prod --files=${files//\\/\/}
+                  pnpm run build:affected:packages:prod --files="${files//\\/\/}"
 
             - name: "Prepare nx cache"
               shell: "bash"

@@ -26,6 +26,7 @@ export interface CommonContext {
         error: (...message: string[]) => void;
         log: (...message: string[]) => void;
         success: (...message: string[]) => void;
+        warn: (...message: string[]) => void;
     };
     // https://github.com/semantic-release/semantic-release/blob/27b105337b16dfdffb0dfa36d1178015e7ba68a3/index.js#L267
     options: Options;
@@ -127,6 +128,6 @@ export interface Release {
     gitTag?: string;
     name?: string;
     // https://github.com/sindresorhus/semver-diff#semverdiffversiona-versionb
-    type?: "build" | "major" | "minor" | "patch" | "premajor" | "preminor" | "prepatch" | "prerelease" | undefined;
+    type?: "build" | "major" | "minor" | "patch" | "premajor" | "preminor" | "prepatch" | "prerelease";
     version: string;
 }

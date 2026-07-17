@@ -1,26 +1,9 @@
-# https://help.github.com/en/categories/automating-your-workflow-with-github-actions
-
 name: "Lint"
-
 on: # yamllint disable-line rule:truthy
-    # eslint-disable-next-line yml/no-empty-mapping-value
-    pull_request: # yamllint disable-line rule:empty-values
-        types: ["opened", "synchronize"]
+    pull_request:
+        branches: ["main"]
     merge_group: # yamllint disable-line rule:empty-values
-
-concurrency:
-    group: "${{ github.workflow }}-${{ github.ref }}"
-    cancel-in-progress: true
-
-permissions:
-    contents: "read" # to fetch code (actions/checkout)
-
-env:
-    NX_BRANCH: "${{ github.event.number }}"
-    NX_RUN_GROUP: "${{ github.run_id }}"
-    HEAD_REF: "${{ github.event_name == 'pull_request' && github.event.pull_request.head.ref || github.ref_name }}"
-    HEAD_REPOSITORY: "${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name || github.repository }}"
-
+permissions: {}
 jobs:
     files-changed:
         name: "Detect what files changed"

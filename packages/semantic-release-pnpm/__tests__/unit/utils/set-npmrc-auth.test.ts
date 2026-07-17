@@ -1,10 +1,10 @@
-/* eslint-disable sonarjs/no-hardcoded-passwords */
-/* eslint-disable sonarjs/no-clear-text-protocols */
+/* eslint-disable sonarjs/no-clear-text-protocols, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-argument */
 import { rm } from "node:fs/promises";
 import { env } from "node:process";
 
 import { readFile, writeFile } from "@visulima/fs";
 import { join } from "@visulima/path";
+// eslint-disable-next-line e18e/ban-dependencies
 import { temporaryDirectory, temporaryFile } from "tempy";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 

@@ -48,7 +48,7 @@ export interface Package {
     options: Record<string, unknown>;
     path: string;
     plugins: PluginFunctions;
-    result?: ReleaseResult | false | undefined;
+    result?: ReleaseResult | false;
 }
 
 // Release information
@@ -112,6 +112,7 @@ export interface MultiContext {
     stdout: NodeJS.WriteStream;
 }
 
+export type ReleaseStrategy = "patch" | "minor" | "major" | "inherit";
 // Configuration interfaces
 export interface MultiReleaseConfig {
     [key: string]: unknown;
@@ -121,7 +122,13 @@ export interface MultiReleaseConfig {
     deps?: {
         bump?: "override" | "satisfy" | "inherit";
         prefix?: string;
-        release?: "patch" | "minor" | "major" | "inherit";
+        release?:
+            | ReleaseStrategy
+            | {
+                major?: Omit<ReleaseStrategy, "inherit">;
+                minor?: Omit<ReleaseStrategy, "inherit">;
+                patch?: Omit<ReleaseStrategy, "inherit">;
+            };
     };
     dryRun?: boolean;
     firstParent?: boolean;

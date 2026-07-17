@@ -1,5 +1,7 @@
 import type { PackageJson } from "@visulima/package";
+// eslint-disable-next-line e18e/ban-dependencies
 import dbg from "debug";
+// eslint-disable-next-line e18e/ban-dependencies
 import { execa } from "execa";
 
 import type { AddChannelContext } from "./definitions/context";
@@ -42,7 +44,7 @@ const addChannel = async (pluginConfig: PluginConfig, packageJson: PackageJson, 
         logger.log(`Adding version ${version} to npm registry on dist-tag ${distributionTag}`);
 
         const npmrc = getNpmrcPath(cwd, env);
-        const distTagArguments = ["dist-tag", "add", `${packageJson.name}@${version}`, distributionTag, "--registry", registry];
+        const distTagArguments = ["dist-tag", "add", `${packageJson.name ?? ""}@${version}`, distributionTag, "--registry", registry];
 
         debug(`Executing: pnpm ${distTagArguments.join(" ")}`);
 
@@ -60,12 +62,12 @@ const addChannel = async (pluginConfig: PluginConfig, packageJson: PackageJson, 
 
         await result;
 
-        logger.log(`Added ${packageJson.name}@${version} to dist-tag @${distributionTag} on ${registry}`);
+        logger.log(`Added ${packageJson.name ?? ""}@${version} to dist-tag @${distributionTag} on ${registry}`);
 
         return getReleaseInfo(packageJson, context, distributionTag, registry);
     }
 
-    logger.log(`Skip adding to npm channel as ${reasonToNotPublish(pluginConfig, packageJson)}`);
+    logger.log(`Skip adding to npm channel as ${reasonToNotPublish(pluginConfig, packageJson) ?? ""}`);
 
     return false;
 };

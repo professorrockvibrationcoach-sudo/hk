@@ -3,7 +3,7 @@ import type { PluginConfig } from "../definitions/plugin-config";
 import getNpmrcPath from "../utils/get-npmrc-path";
 import getPackage from "../utils/get-package";
 import { shouldPublish } from "../utils/should-publish";
-import verifyAuth from "./verify-auth";
+import { verifyAuth } from "./verify-auth";
 import verifyConfig from "./verify-config";
 import verifyPnpm from "./verify-pnpm";
 
@@ -28,14 +28,15 @@ const verify = async (pluginConfig: PluginConfig, context: VerifyConditionsConte
     let errorsMessage = "";
 
     try {
-        await verifyPnpm(context);
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } catch (error: any) {
-        const typedError = error as AggregateError;
+        verifyPnpm(context);
+    } catch (error) {
+        // verify-auth re-throws plain Errors (e.g. EINVALIDNPMTOKEN from GitLab) and verify-pnpm can
+        // surface non-Aggregate errors as well, so `errors` may not be an iterable array.
+        const typedError = error as Error & { errors?: unknown };
 
         errorsMessage += typedError.message;
 
-        errors = [...errors, ...typedError.errors ?? [error]];
+        errors = [...errors, ...Array.isArray(typedError.errors) ? (typedError.errors as Error[]) : [typedError]];
     }
 
     try {
@@ -46,17 +47,16 @@ const verify = async (pluginConfig: PluginConfig, context: VerifyConditionsConte
 
             const npmrc = getNpmrcPath(context.cwd, context.env);
 
-            await verifyAuth(npmrc, packageJson, context, pluginConfig.pkgRoot);
+            await verifyAuth(npmrc, packageJson, context);
         } else {
             context.logger.log(`Skipping authentication verification for package "${packageJson.name ?? "unknown"}" (publishing disabled)`);
         }
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } catch (error: any) {
-        const typedError = error as AggregateError;
+    } catch (error) {
+        const typedError = error as Error & { errors?: unknown };
 
         errorsMessage += typedError.message;
 
-        errors = [...errors, ...typedError.errors ?? [error]];
+        errors = [...errors, ...Array.isArray(typedError.errors) ? (typedError.errors as Error[]) : [typedError]];
     }
 
     if (errors.length > 0) {

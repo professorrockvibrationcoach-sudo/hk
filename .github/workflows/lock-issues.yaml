@@ -3,10 +3,15 @@ name: "Lock inactive issues and pull requests"
 on: # yamllint disable-line rule:truthy
     schedule:
         - cron: "0 * * * *"
-    workflow_dispatch: # yamllint disable-line rule:empty-values
+
+permissions:
+    contents: "read"
+    discussions: "write"
+    issues: "write"
+    pull-requests: "write"
 
 jobs:
     lock-closed:
-        uses: "anolilab/workflows/.github/workflows/lock-closed.yml@main"
+        uses: "anolilab/workflows/.github/workflows/lock-closed.yml@6d0f01d0742f15c51b2398bc97e0b008c7416b00" # main
         with:
             target-repo: "anolilab/semantic-release"

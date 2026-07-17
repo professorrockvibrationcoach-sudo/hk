@@ -16,7 +16,7 @@
         "build:packages:prod": "nx run-many --target=build:prod --parallel --projects=tag:type:package",
         "clean": "nx run-many --target=clean --all --parallel && rimraf ./node_modules",
         "graph": "nx dep-graph",
-        "preinstall": "node verify-node-version.cjs && npx only-allow pnpm",
+        "preinstall": "node verify-node-version.cjs && pnpm dlx only-allow pnpm",
         "postinstall": "(is-ci || husky || exit 0) && node scripts/generate-labeler-config.js && node scripts/list-packages.js",
         "lint": "pnpm run lint:prettier && pnpm run lint:eslint",
         "lint:affected:eslint": "nx affected --target=lint:eslint --parallel --nxBail",
@@ -33,8 +33,8 @@
         "lint:prettier:root": "prettier --config=.prettierrc.cjs --check '*.{json,yml,yaml,js,ts}'",
         "lint:secrets": "secretlint **/*",
         "lint:staged": "lint-staged --verbose --concurrent false --debug",
-        "lint:text": "textlint ./.github/ ./packages/** ./README.md ./UPGRADE.md --parallel --experimental --cache --dry-run",
-        "lint:text:fix": "textlint ./.github/ ./packages/** ./README.md ./UPGRADE.md --parallel --experimental --fix",
+        "lint:text": "textlint ./.github/ ./packages/** ./README.md ./UPGRADE.md --experimental --cache --fix --dry-run",
+        "lint:text:fix": "textlint ./.github/ ./packages/** ./README.md ./UPGRADE.md --experimental --fix",
         "lint:types": "nx run-many --target=lint:types --all --parallel",
         "nx": "nx",
         "plop": "plop",
@@ -42,8 +42,7 @@
         "test": "nx run-many --target=test --all --parallel",
         "test:affected": "nx affected --target=test --parallel --nxBail",
         "test:affected:coverage": "nx affected --target=test:coverage --parallel --nxBail",
-        "test:coverage": "nx run-many --target=test:coverage --all --parallel",
-        "update:deps": "taze"
+        "test:coverage": "nx run-many --target=test:coverage --all --parallel"
     },
     "browserslist": [
         "extends browserslist-config-anolilab"
@@ -74,12 +73,11 @@
         "secretlint": "catalog:lint",
         "semantic-release": "catalog:cli",
         "sort-package-json": "catalog:prod",
-        "taze": "catalog:cli",
         "textlint": "catalog:lint",
         "typescript": "catalog:tsc",
         "vitest": "catalog:test"
     },
-    "packageManager": "pnpm@10.25.0",
+    "packageManager": "pnpm@11.8.0",
     "engines": {
         "node": "^22.14.0 || >= 24.10.0"
     }
