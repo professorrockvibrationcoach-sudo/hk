@@ -1,123 +1,33 @@
-## @anolilab/multi-semantic-release [4.4.5](https://github.com/anolilab/semantic-release/compare/@anolilab/multi-semantic-release@4.4.4...@anolilab/multi-semantic-release@4.4.5) (2026-06-20)
+## @anolilab/multi-semantic-release [3.2.3-alpha.3](https://github.com/anolilab/semantic-release/compare/@anolilab/multi-semantic-release@3.2.3-alpha.2...@anolilab/multi-semantic-release@3.2.3-alpha.3) (2025-12-10)
 
 ### Bug Fixes
 
-* **build:** add @visulima/pail devDependency to satisfy cerebro peer ([a440c7d](https://github.com/anolilab/semantic-release/commit/a440c7dc61ca5ae69b4931e7ba751c43fdc8159b))
-* **deps:** bump vitest, lodash override, ckeditor typedoc-plugins, semantic-release peer, workflow pins ([3119947](https://github.com/anolilab/semantic-release/commit/3119947b999cd21425dc9d851b07b5fb92f73008)), closes [#328](https://github.com/anolilab/semantic-release/issues/328) [#329](https://github.com/anolilab/semantic-release/issues/329) [#330](https://github.com/anolilab/semantic-release/issues/330) [#331](https://github.com/anolilab/semantic-release/issues/331) [#324](https://github.com/anolilab/semantic-release/issues/324)
-* **lint:** satisfy eslint-config v27 rules and make codecov upload non-blocking ([da69704](https://github.com/anolilab/semantic-release/commit/da69704ad8158cd82a4eab1259164fbbb6c82999))
+* fixed discord link ([af624ef](https://github.com/anolilab/semantic-release/commit/af624ef616ebd84b84932f8f1bf5c978b7a8349d))
 
 
 ### Dependencies
 
-* **@anolilab/semantic-release-clean-package-json:** upgraded to 5.5.14
-* **@anolilab/semantic-release-pnpm:** upgraded to 8.1.16
+* **@anolilab/semantic-release-clean-package-json:** upgraded to 4.2.3-alpha.2
+* **@anolilab/semantic-release-pnpm:** upgraded to 4.0.0-alpha.2
 
-## @anolilab/multi-semantic-release [4.4.4](https://github.com/anolilab/semantic-release/compare/@anolilab/multi-semantic-release@4.4.3...@anolilab/multi-semantic-release@4.4.4) (2026-05-26)
-
-### Miscellaneous Chores
-
-* **deps:** bump deps and upgrade to pnpm 11 ([#312](https://github.com/anolilab/semantic-release/issues/312)) ([100be77](https://github.com/anolilab/semantic-release/commit/100be77953d6c51f595b01fd092a2a83c011ed0b))
-
-
-### Dependencies
-
-* **@anolilab/semantic-release-clean-package-json:** upgraded to 5.5.13
-* **@anolilab/semantic-release-pnpm:** upgraded to 8.1.15
-
-## @anolilab/multi-semantic-release [4.4.3](https://github.com/anolilab/semantic-release/compare/@anolilab/multi-semantic-release@4.4.2...@anolilab/multi-semantic-release@4.4.3) (2026-05-23)
-
-
-### Dependencies
-
-* **@anolilab/semantic-release-clean-package-json:** upgraded to 5.5.12
-* **@anolilab/semantic-release-pnpm:** upgraded to 8.1.14
-
-## @anolilab/multi-semantic-release [4.4.2](https://github.com/anolilab/semantic-release/compare/@anolilab/multi-semantic-release@4.4.1...@anolilab/multi-semantic-release@4.4.2) (2026-05-23)
-
-### Miscellaneous Chores
-
-* **security:** apply audit overrides ([9607d56](https://github.com/anolilab/semantic-release/commit/9607d56c06dd830707151026b0308f0db56c3861))
-
-### Code Refactoring
-
-* **multi-semantic-release:** satisfy exports-last lint rule and tighten test types ([1d61f30](https://github.com/anolilab/semantic-release/commit/1d61f30fcecee7e7cc79f644d515c174d1c2925e))
-
-
-### Dependencies
-
-* **@anolilab/semantic-release-clean-package-json:** upgraded to 5.5.11
-* **@anolilab/semantic-release-pnpm:** upgraded to 8.1.13
-
-## @anolilab/multi-semantic-release [4.4.1](https://github.com/anolilab/semantic-release/compare/@anolilab/multi-semantic-release@4.4.0...@anolilab/multi-semantic-release@4.4.1) (2026-04-08)
+## @anolilab/multi-semantic-release [3.2.3-alpha.2](https://github.com/anolilab/semantic-release/compare/@anolilab/multi-semantic-release@3.2.3-alpha.1...@anolilab/multi-semantic-release@3.2.3-alpha.2) (2025-12-10)
 
 ### Bug Fixes
 
-* **multi-semantic-release:** apply deps.release strategy to catalog-triggered releases ([bafa1a3](https://github.com/anolilab/semantic-release/commit/bafa1a3e27e42f31b20ce579c8d8bce9711ffb46))
+* improve repository URL normalization logic ([5a9e6af](https://github.com/anolilab/semantic-release/commit/5a9e6af11195c989d7d581990e29f59b8392d115))
 
-## @anolilab/multi-semantic-release [4.4.0](https://github.com/anolilab/semantic-release/compare/@anolilab/multi-semantic-release@4.3.0...@anolilab/multi-semantic-release@4.4.0) (2026-04-08)
-
-### Bug Fixes
-
-* **multi-semantic-release:** fix type errors and resolve all ESLint violations ([de5c27a](https://github.com/anolilab/semantic-release/commit/de5c27ada34691ba2b171aca89ed9f0f54cec348))
-* **multi-semantic-release:** fix type errors and resolve all ESLint violations ([ff6e250](https://github.com/anolilab/semantic-release/commit/ff6e250270b43eb2f83c9426e7d4e0c9944b67dd))
-
-
-### Dependencies
-
-* **@anolilab/semantic-release-clean-package-json:** upgraded to 5.5.0
-* **@anolilab/semantic-release-pnpm:** upgraded to 8.0.0
-
-## @anolilab/multi-semantic-release [4.3.0](https://github.com/anolilab/semantic-release/compare/@anolilab/multi-semantic-release@4.2.0...@anolilab/multi-semantic-release@4.3.0) (2026-04-07)
-
-
-### Dependencies
-
-* **@anolilab/semantic-release-clean-package-json:** upgraded to 5.4.0
-* **@anolilab/semantic-release-pnpm:** upgraded to 7.0.0
-
-## @anolilab/multi-semantic-release [4.2.0](https://github.com/anolilab/semantic-release/compare/@anolilab/multi-semantic-release@4.1.1...@anolilab/multi-semantic-release@4.2.0) (2026-04-07)
-
-
-### Dependencies
-
-* **@anolilab/semantic-release-clean-package-json:** upgraded to 5.3.0
-* **@anolilab/semantic-release-pnpm:** upgraded to 6.0.0
-
-## @anolilab/multi-semantic-release [4.1.1](https://github.com/anolilab/semantic-release/compare/@anolilab/multi-semantic-release@4.1.0...@anolilab/multi-semantic-release@4.1.1) (2026-02-02)
-
-
-### Dependencies
-
-* **@anolilab/semantic-release-clean-package-json:** upgraded to 5.2.0
-* **@anolilab/semantic-release-pnpm:** upgraded to 5.0.0
-
-## @anolilab/multi-semantic-release [4.1.0](https://github.com/anolilab/semantic-release/compare/@anolilab/multi-semantic-release@4.0.0...@anolilab/multi-semantic-release@4.1.0) (2026-01-13)
-
-### Features
-
-* update README and types to clarify devDependencies handling and release strategies ([e598b08](https://github.com/anolilab/semantic-release/commit/e598b0865da5e2cd80893e240513cc4689956a1e))
-
-### Bug Fixes
-
-* **tests:** update assertions and comments to reflect changes in release behavior for devDependencies ([879968c](https://github.com/anolilab/semantic-release/commit/879968c1ca2a80214197e1ca51effb7ba4612cc1))
-
-
-### Dependencies
-
-* **@anolilab/semantic-release-clean-package-json:** upgraded to 5.1.0
-* **@anolilab/semantic-release-pnpm:** upgraded to 4.1.0
-
-## @anolilab/multi-semantic-release [4.0.0](https://github.com/anolilab/semantic-release/compare/@anolilab/multi-semantic-release@3.2.2...@anolilab/multi-semantic-release@4.0.0) (2026-01-08)
+## @anolilab/multi-semantic-release [3.2.3-alpha.1](https://github.com/anolilab/semantic-release/compare/@anolilab/multi-semantic-release@3.2.2...@anolilab/multi-semantic-release@3.2.3-alpha.1) (2025-12-09)
 
 ### Bug Fixes
 
 * add GitHub labeler configuration and update package metadata ([dce9314](https://github.com/anolilab/semantic-release/commit/dce9314ca6aefaf86e75c6d065cdac8ad7a60717))
+* enhance repository URL normalization to support authentication tokens ([709f762](https://github.com/anolilab/semantic-release/commit/709f76259a4b795d07572872eb27f95a7051fbe2))
 
 
 ### Dependencies
 
-* **@anolilab/semantic-release-clean-package-json:** upgraded to 5.0.0
-* **@anolilab/semantic-release-pnpm:** upgraded to 4.0.0
+* **@anolilab/semantic-release-clean-package-json:** upgraded to 4.2.3-alpha.1
+* **@anolilab/semantic-release-pnpm:** upgraded to 4.0.0-alpha.1
 
 ## @anolilab/multi-semantic-release [3.2.2](https://github.com/anolilab/semantic-release/compare/@anolilab/multi-semantic-release@3.2.1...@anolilab/multi-semantic-release@3.2.2) (2025-12-05)
 

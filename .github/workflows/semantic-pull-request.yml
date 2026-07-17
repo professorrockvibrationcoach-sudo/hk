@@ -66,7 +66,7 @@ jobs:
                       ```
 
               # Delete a previous comment when the issue has been resolved
-            - if: "${{ github.event_name == 'pull_request_target' && steps.lint_pr_title.outputs.error_message == null }}"
+            - if: "${{ steps.lint_pr_title.outputs.error_message == null }}"
               uses: "marocchino/sticky-pull-request-comment@0ea0beb66eb9baf113663a64ec522f60e49231c0" # v3.0.4
               with:
                   header: "pr-title-lint-error"

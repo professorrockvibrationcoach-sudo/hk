@@ -1,129 +1,15 @@
-## @anolilab/semantic-release-pnpm [8.1.16](https://github.com/anolilab/semantic-release/compare/@anolilab/semantic-release-pnpm@8.1.15...@anolilab/semantic-release-pnpm@8.1.16) (2026-06-20)
+## @anolilab/semantic-release-pnpm [4.0.0-alpha.2](https://github.com/anolilab/semantic-release/compare/@anolilab/semantic-release-pnpm@4.0.0-alpha.1...@anolilab/semantic-release-pnpm@4.0.0-alpha.2) (2025-12-10)
 
 ### Bug Fixes
 
-* **build:** add @visulima/pail devDependency to satisfy cerebro peer ([a440c7d](https://github.com/anolilab/semantic-release/commit/a440c7dc61ca5ae69b4931e7ba751c43fdc8159b))
-* **lint:** satisfy eslint-config v27 rules and make codecov upload non-blocking ([da69704](https://github.com/anolilab/semantic-release/commit/da69704ad8158cd82a4eab1259164fbbb6c82999))
+* fixed discord link ([af624ef](https://github.com/anolilab/semantic-release/commit/af624ef616ebd84b84932f8f1bf5c978b7a8349d))
 
 
 ### Dependencies
 
-* **@anolilab/rc:** upgraded to 4.0.4
+* **@anolilab/rc:** upgraded to 3.2.1-alpha.2
 
-## @anolilab/semantic-release-pnpm [8.1.15](https://github.com/anolilab/semantic-release/compare/@anolilab/semantic-release-pnpm@8.1.14...@anolilab/semantic-release-pnpm@8.1.15) (2026-05-26)
-
-### Bug Fixes
-
-* **semantic-release-pnpm:** handle non-AggregateError in verify and skip re-publish ([#309](https://github.com/anolilab/semantic-release/issues/309)) ([6acb075](https://github.com/anolilab/semantic-release/commit/6acb075cbd3e7abf1f8c0d5417ffb661fd331646))
-* **semantic-release-pnpm:** soft-fail whoami for non-official registries ([#310](https://github.com/anolilab/semantic-release/issues/310)) ([b041d88](https://github.com/anolilab/semantic-release/commit/b041d88374957b254cc4f4561a44467a422918a9))
-
-### Miscellaneous Chores
-
-* **deps:** bump deps and upgrade to pnpm 11 ([#312](https://github.com/anolilab/semantic-release/issues/312)) ([100be77](https://github.com/anolilab/semantic-release/commit/100be77953d6c51f595b01fd092a2a83c011ed0b))
-
-
-### Dependencies
-
-* **@anolilab/rc:** upgraded to 4.0.3
-
-## @anolilab/semantic-release-pnpm [8.1.14](https://github.com/anolilab/semantic-release/compare/@anolilab/semantic-release-pnpm@8.1.13...@anolilab/semantic-release-pnpm@8.1.14) (2026-05-23)
-
-## @anolilab/semantic-release-pnpm [8.1.13](https://github.com/anolilab/semantic-release/compare/@anolilab/semantic-release-pnpm@8.1.12...@anolilab/semantic-release-pnpm@8.1.13) (2026-05-23)
-
-## @anolilab/semantic-release-pnpm [8.1.12](https://github.com/anolilab/semantic-release/compare/@anolilab/semantic-release-pnpm@8.1.11...@anolilab/semantic-release-pnpm@8.1.12) (2026-05-23)
-
-## @anolilab/semantic-release-pnpm [8.1.11](https://github.com/anolilab/semantic-release/compare/@anolilab/semantic-release-pnpm@8.1.10...@anolilab/semantic-release-pnpm@8.1.11) (2026-05-22)
-
-## @anolilab/semantic-release-pnpm [8.1.10](https://github.com/anolilab/semantic-release/compare/@anolilab/semantic-release-pnpm@8.1.9...@anolilab/semantic-release-pnpm@8.1.10) (2026-05-21)
-
-### Miscellaneous Chores
-
-* **security:** apply audit overrides ([9607d56](https://github.com/anolilab/semantic-release/commit/9607d56c06dd830707151026b0308f0db56c3861))
-
-## @anolilab/semantic-release-pnpm [8.1.9](https://github.com/anolilab/semantic-release/compare/@anolilab/semantic-release-pnpm@8.1.8...@anolilab/semantic-release-pnpm@8.1.9) (2026-05-04)
-
-## @anolilab/semantic-release-pnpm [8.1.8](https://github.com/anolilab/semantic-release/compare/@anolilab/semantic-release-pnpm@8.1.7...@anolilab/semantic-release-pnpm@8.1.8) (2026-05-01)
-
-## @anolilab/semantic-release-pnpm [8.1.7](https://github.com/anolilab/semantic-release/compare/@anolilab/semantic-release-pnpm@8.1.6...@anolilab/semantic-release-pnpm@8.1.7) (2026-04-29)
-
-## @anolilab/semantic-release-pnpm [8.1.6](https://github.com/anolilab/semantic-release/compare/@anolilab/semantic-release-pnpm@8.1.5...@anolilab/semantic-release-pnpm@8.1.6) (2026-04-28)
-
-## @anolilab/semantic-release-pnpm [8.1.5](https://github.com/anolilab/semantic-release/compare/@anolilab/semantic-release-pnpm@8.1.4...@anolilab/semantic-release-pnpm@8.1.5) (2026-04-27)
-
-### Bug Fixes
-
-* **semantic-release-pnpm:** align integration test with whoami error and add cache reset helper ([fdfc677](https://github.com/anolilab/semantic-release/commit/fdfc67705d1ba0b28dee9acd9b61fc1ec6916e62))
-* **semantic-release-pnpm:** remove duplicate verifyAuthContextAgainstCustomRegistry function ([dc64c44](https://github.com/anolilab/semantic-release/commit/dc64c4443e61883136d78fb407ba1329bc06fc09))
-* **semantic-release-pnpm:** use `npm pkg set` on pnpm v10+ ([c96d683](https://github.com/anolilab/semantic-release/commit/c96d6834099a2cfafa000a976be73fa9074f531c))
-* **semantic-release-pnpm:** use pnpm whoami for custom registry auth verification ([afee204](https://github.com/anolilab/semantic-release/commit/afee2047abcd6201d63414f80349a7e5331925f8))
-
-### Tests
-
-* **semantic-release-pnpm:** strengthen already-published regression test ([6e84c11](https://github.com/anolilab/semantic-release/commit/6e84c11505925e47bc72aff1e1d2fa897125e276))
-* **semantic-release-pnpm:** use distinct registry URL in whoami-failure test to avoid cache collision ([5900697](https://github.com/anolilab/semantic-release/commit/59006976fb6aec218b85e7d54fcff3332f3dee19))
-
-## @anolilab/semantic-release-pnpm [8.1.4](https://github.com/anolilab/semantic-release/compare/@anolilab/semantic-release-pnpm@8.1.3...@anolilab/semantic-release-pnpm@8.1.4) (2026-04-26)
-
-### Miscellaneous Chores
-
-* clean up old lint command ([07d70e6](https://github.com/anolilab/semantic-release/commit/07d70e65b2fe220c3aee13eab796a70577a2d5c6))
-
-## @anolilab/semantic-release-pnpm [8.1.3](https://github.com/anolilab/semantic-release/compare/@anolilab/semantic-release-pnpm@8.1.2...@anolilab/semantic-release-pnpm@8.1.3) (2026-04-26)
-
-## @anolilab/semantic-release-pnpm [8.1.2](https://github.com/anolilab/semantic-release/compare/@anolilab/semantic-release-pnpm@8.1.1...@anolilab/semantic-release-pnpm@8.1.2) (2026-04-17)
-
-
-### Dependencies
-
-* **@anolilab/rc:** upgraded to 4.0.2
-
-## @anolilab/semantic-release-pnpm [8.1.1](https://github.com/anolilab/semantic-release/compare/@anolilab/semantic-release-pnpm@8.1.0...@anolilab/semantic-release-pnpm@8.1.1) (2026-04-15)
-
-### Bug Fixes
-
-* **semantic-release-pnpm:** support pnpm v10 in prepare step ([f1dee76](https://github.com/anolilab/semantic-release/commit/f1dee765dc2278cecde34e85bc6d7096eeeba3d5))
-
-## @anolilab/semantic-release-pnpm [8.1.0](https://github.com/anolilab/semantic-release/compare/@anolilab/semantic-release-pnpm@8.0.0...@anolilab/semantic-release-pnpm@8.1.0) (2026-04-08)
-
-### Features
-
-* **semantic-release-pnpm:** add generic and CircleCI trusted publishing via NPM_ID_TOKEN ([c2aafd3](https://github.com/anolilab/semantic-release/commit/c2aafd301b45cdf5f92eef78ff0d461f7e0df0fb))
-
-### Bug Fixes
-
-* **semantic-release-pnpm:** allow tarballDir option to be set to false ([a31e1d6](https://github.com/anolilab/semantic-release/commit/a31e1d64b2e8481a73700a3dff64233e14aab91d)), closes [#302](https://github.com/anolilab/semantic-release/issues/302)
-
-## @anolilab/semantic-release-pnpm [8.0.0](https://github.com/anolilab/semantic-release/compare/@anolilab/semantic-release-pnpm@7.0.0...@anolilab/semantic-release-pnpm@8.0.0) (2026-04-08)
-
-### Bug Fixes
-
-* **semantic-release-pnpm:** false EINVALIDNPMAUTH on successful dry-run publish ([ccb0475](https://github.com/anolilab/semantic-release/commit/ccb04758a6b3cf7176f5ea6a5081a0ec239c3e0e)), closes [anolilab/semantic-release#278](https://github.com/anolilab/semantic-release/issues/278)
-* **semantic-release-pnpm:** fix type errors and resolve all ESLint violations ([943e416](https://github.com/anolilab/semantic-release/commit/943e41694917a5a94c3d7f629acd198d7e37b592))
-* **semantic-release-pnpm:** fix verify-auth test and resolve ESLint violations ([9f38380](https://github.com/anolilab/semantic-release/commit/9f383802f58df3ceb13c46b570853c309ee95357))
-
-
-### Dependencies
-
-* **@anolilab/rc:** upgraded to 4.0.1
-
-## @anolilab/semantic-release-pnpm [7.0.0](https://github.com/anolilab/semantic-release/compare/@anolilab/semantic-release-pnpm@6.0.0...@anolilab/semantic-release-pnpm@7.0.0) (2026-04-07)
-
-## @anolilab/semantic-release-pnpm [6.0.0](https://github.com/anolilab/semantic-release/compare/@anolilab/semantic-release-pnpm@5.0.0...@anolilab/semantic-release-pnpm@6.0.0) (2026-04-07)
-
-## @anolilab/semantic-release-pnpm [5.0.0](https://github.com/anolilab/semantic-release/compare/@anolilab/semantic-release-pnpm@4.1.0...@anolilab/semantic-release-pnpm@5.0.0) (2026-02-02)
-
-## @anolilab/semantic-release-pnpm [4.1.0](https://github.com/anolilab/semantic-release/compare/@anolilab/semantic-release-pnpm@4.0.0...@anolilab/semantic-release-pnpm@4.1.0) (2026-01-13)
-
-### Features
-
-* update README and types to clarify devDependencies handling and release strategies ([e598b08](https://github.com/anolilab/semantic-release/commit/e598b0865da5e2cd80893e240513cc4689956a1e))
-
-### Bug Fixes
-
-* add --no-git-checks option to pnpm publish command in authentication verification tests ([c21dd7a](https://github.com/anolilab/semantic-release/commit/c21dd7aa4b93524b4f9edae168146e2b3d3e5850))
-* add --no-git-checks to custom registry verification dry run ([#255](https://github.com/anolilab/semantic-release/issues/255)) ([ea25b84](https://github.com/anolilab/semantic-release/commit/ea25b84de9a756efdade1fa4d3204e92c01a632c))
-
-## @anolilab/semantic-release-pnpm [4.0.0](https://github.com/anolilab/semantic-release/compare/@anolilab/semantic-release-pnpm@3.2.2...@anolilab/semantic-release-pnpm@4.0.0) (2026-01-08)
+## @anolilab/semantic-release-pnpm [4.0.0-alpha.1](https://github.com/anolilab/semantic-release/compare/@anolilab/semantic-release-pnpm@3.2.2...@anolilab/semantic-release-pnpm@4.0.0-alpha.1) (2025-12-09)
 
 ### Bug Fixes
 
@@ -132,7 +18,7 @@
 
 ### Dependencies
 
-* **@anolilab/rc:** upgraded to 4.0.0
+* **@anolilab/rc:** upgraded to 3.2.1-alpha.1
 
 ## @anolilab/semantic-release-pnpm [3.2.2](https://github.com/anolilab/semantic-release/compare/@anolilab/semantic-release-pnpm@3.2.1...@anolilab/semantic-release-pnpm@3.2.2) (2025-12-05)
 

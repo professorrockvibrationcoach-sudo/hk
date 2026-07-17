@@ -72,8 +72,13 @@ const getPackage = async (
 
     // Normalize repository URL from manifest if not already set in options
     // This ensures git+https:// and git+ssh:// URLs from package.json are normalized before semantic-release processes them.
-    // Note: When using token-based authentication (e.g., GITHUB_TOKEN), semantic-release automatically converts
-    // repository URLs to HTTPS format regardless of the repositoryUrl format specified.
+    // Note: When using token-based authentication (e.g., GITHUB_TOKEN, GITLAB_TOKEN, CI_JOB_TOKEN), semantic-release automatically
+    // converts repository URLs to HTTPS format and injects tokens regardless of the repositoryUrl format specified.
+    // For GitLab CI/CD, ensure GITLAB_TOKEN=$CI_JOB_TOKEN is set and "Allow Git push requests" is enabled in project settings.
+    //
+    // Important: Only set repositoryUrl explicitly if the URL needs normalization (e.g., git+https:// prefix).
+    // If the URL is already in a standard format (https://, ssh://), let semantic-release auto-detect it from git origin
+    // to avoid interfering with its authentication handling.
     if (!finalOptions.repositoryUrl && manifest.repository) {
         let repositoryUrl: string | undefined;
 
@@ -85,7 +90,14 @@ const getPackage = async (
         }
 
         if (repositoryUrl) {
-            finalOptions.repositoryUrl = normalizeRepositoryUrl(repositoryUrl);
+            // Only set repositoryUrl explicitly if it needs normalization (has git+ prefix or git:// protocol)
+            // This prevents interfering with semantic-release's authentication handling for standard URLs
+            const needsNormalization = repositoryUrl.startsWith("git+") || repositoryUrl.startsWith("git://");
+
+            if (needsNormalization) {
+                finalOptions.repositoryUrl = normalizeRepositoryUrl(repositoryUrl);
+            }
+            // Otherwise, let semantic-release auto-detect from git origin for better authentication handling
         }
     }
 
@@ -138,8 +150,14 @@ const releasePackage = async (
 
     // Normalize repositoryUrl to remove npm-specific prefixes (e.g., git+https:// -> https://, git+ssh:// -> ssh://)
     // This is necessary because git commands don't understand the git+ prefix used in package.json.
-    // Note: When using token-based authentication, semantic-release automatically converts URLs to HTTPS format.
-    if (options.repositoryUrl && typeof options.repositoryUrl === "string") {
+    // Note: When using token-based authentication (e.g., GITHUB_TOKEN, GITLAB_TOKEN), semantic-release automatically
+    // converts URLs to HTTPS format and injects tokens. The normalization function preserves URLs with embedded tokens.
+    //
+    // Important: Always normalize URLs that need normalization (git+ or git:// prefixes), even if they contain auth tokens.
+    // The normalizeRepositoryUrl function handles preserving authentication tokens correctly.
+    if (options.repositoryUrl && typeof options.repositoryUrl === "string" // Only normalize if it needs normalization (has git+ prefix or git:// protocol)
+        // The normalizeRepositoryUrl function will preserve any authentication tokens present
+        && (options.repositoryUrl.startsWith("git+") || options.repositoryUrl.startsWith("git://"))) {
         options.repositoryUrl = normalizeRepositoryUrl(options.repositoryUrl);
     }
 

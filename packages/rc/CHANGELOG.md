@@ -1,30 +1,10 @@
-## @anolilab/rc [4.0.4](https://github.com/anolilab/semantic-release/compare/@anolilab/rc@4.0.3...@anolilab/rc@4.0.4) (2026-06-20)
+## @anolilab/rc [3.2.1-alpha.2](https://github.com/anolilab/semantic-release/compare/@anolilab/rc@3.2.1-alpha.1...@anolilab/rc@3.2.1-alpha.2) (2025-12-10)
 
 ### Bug Fixes
 
-* **build:** add @visulima/pail devDependency to satisfy cerebro peer ([a440c7d](https://github.com/anolilab/semantic-release/commit/a440c7dc61ca5ae69b4931e7ba751c43fdc8159b))
+* fixed discord link ([af624ef](https://github.com/anolilab/semantic-release/commit/af624ef616ebd84b84932f8f1bf5c978b7a8349d))
 
-## @anolilab/rc [4.0.3](https://github.com/anolilab/semantic-release/compare/@anolilab/rc@4.0.2...@anolilab/rc@4.0.3) (2026-05-26)
-
-### Miscellaneous Chores
-
-* **deps:** bump deps and upgrade to pnpm 11 ([#312](https://github.com/anolilab/semantic-release/issues/312)) ([100be77](https://github.com/anolilab/semantic-release/commit/100be77953d6c51f595b01fd092a2a83c011ed0b))
-* **rc:** apply lint and prettier fixes ([15d3492](https://github.com/anolilab/semantic-release/commit/15d3492e25765b06bd46a2e02c3b5e9e689a1e64))
-* **security:** apply audit overrides ([9607d56](https://github.com/anolilab/semantic-release/commit/9607d56c06dd830707151026b0308f0db56c3861))
-
-## @anolilab/rc [4.0.2](https://github.com/anolilab/semantic-release/compare/@anolilab/rc@4.0.1...@anolilab/rc@4.0.2) (2026-04-17)
-
-### Bug Fixes
-
-* improved size of the package ([a92a010](https://github.com/anolilab/semantic-release/commit/a92a0106c1f55248b396b0e881ec37f74769bea7))
-
-## @anolilab/rc [4.0.1](https://github.com/anolilab/semantic-release/compare/@anolilab/rc@4.0.0...@anolilab/rc@4.0.1) (2026-04-08)
-
-### Bug Fixes
-
-* **rc:** fix type errors and resolve all ESLint violations ([c04e626](https://github.com/anolilab/semantic-release/commit/c04e6263db20e41886580963c0df8a86d09cc86c))
-
-## @anolilab/rc [4.0.0](https://github.com/anolilab/semantic-release/compare/@anolilab/rc@3.2.0...@anolilab/rc@4.0.0) (2026-01-08)
+## @anolilab/rc [3.2.1-alpha.1](https://github.com/anolilab/semantic-release/compare/@anolilab/rc@3.2.0...@anolilab/rc@3.2.1-alpha.1) (2025-12-09)
 
 ### Bug Fixes
 
